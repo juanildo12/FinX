@@ -1,11 +1,12 @@
 import { Transaction, CashFlowData, MonthlySummary, Category } from '../types';
 import { SHORT_MONTHS, ALL_CATEGORIES } from '../constants';
 
-export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
-  const formatted = new Intl.NumberFormat('es-ES', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+export const formatCurrency = (amount: number, currency: string = 'USD', thousandSeparator: string = '.', decimalSeparator: string = ','): string => {
+  const fixed = amount.toFixed(2);
+  const [integerPart, decimalPart] = fixed.split('.');
+  
+  let formatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+  formatted = formatted + decimalSeparator + decimalPart;
   
   const currencySymbols: Record<string, string> = {
     USD: '$',

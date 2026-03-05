@@ -7,6 +7,7 @@ export type GoalStatus = 'active' | 'completed' | 'cancelled';
 export type DebtStatus = 'active' | 'paid';
 export type AlertType = 'payment' | 'budget' | 'goal' | 'debt';
 export type ThemeMode = 'light' | 'dark';
+export type AccountType = 'checking' | 'cash' | 'savings' | 'investment' | 'other';
 
 export interface Transaction {
   id: string;
@@ -18,6 +19,7 @@ export interface Transaction {
   date: string;
   paymentMethod: PaymentMethod;
   cardId?: string;
+  accountId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +99,20 @@ export interface UserSettings {
   theme: ThemeMode;
   notificationsEnabled: boolean;
   emailNotifications: boolean;
+  thousandSeparator: string;
+  decimalSeparator: string;
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  institution?: string;
+  initialBalance: number;
+  currentBalance: number;
+  color: string;
+  icon: string;
+  createdAt: string;
 }
 
 export interface Category {

@@ -22,6 +22,8 @@ import TaxCouponsScreen from '../screens/Settings/TaxCoupons';
 import SupportScreen from '../screens/Settings/Support';
 import ConfigurationScreen from '../screens/Settings/Configuration';
 import FinancialHealthScreen from '../screens/FinancialHealth';
+import CategoriesScreen from '../screens/Categories';
+import AccountsScreen from '../screens/Accounts';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -157,6 +159,16 @@ const SettingsStack = () => {
         name="FinancialHealth" 
         component={FinancialHealthScreen}
         options={{ title: 'Salud Financiera' }}
+      />
+      <Stack.Screen 
+        name="Categories" 
+        component={CategoriesScreen}
+        options={{ title: 'Categorías' }}
+      />
+      <Stack.Screen 
+        name="Accounts" 
+        component={AccountsScreen}
+        options={{ title: 'Cuentas' }}
       />
       <Stack.Screen 
         name="Cards" 

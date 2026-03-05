@@ -51,6 +51,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       <Card style={styles.section}>
         <SettingItem icon="receipt" title="Cupones Fiscales" subtitle="Almacena tus comprobantes" onPress={() => navigation.navigate('TaxCoupons')} />
         <Divider spacing={0} />
+        <SettingItem icon="pricetag" title="Categorías" subtitle="Gestiona tus categorías" onPress={() => navigation.navigate('Categories')} />
+        <Divider spacing={0} />
+        <SettingItem icon="wallet" title="Cuentas" subtitle="Gestiona tus cuentas" onPress={() => navigation.navigate('Accounts')} />
+        <Divider spacing={0} />
         <SettingItem icon="chatbubbles" title="Soporte" subtitle="Chat de ayuda" onPress={() => navigation.navigate('Support')} />
       </Card>
 

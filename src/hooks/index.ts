@@ -11,13 +11,17 @@ export const useTheme = (): Theme => {
 export const useCurrency = () => {
   const settings = useAppStore((state) => state.settings);
   const currency = settings.currency || 'USD';
+  const thousandSeparator = settings.thousandSeparator || '.';
+  const decimalSeparator = settings.decimalSeparator || ',';
   
   const formatCurrency = (amount: number): string => {
-    return formatCurrencyUtil(amount, currency);
+    return formatCurrencyUtil(amount, currency, thousandSeparator, decimalSeparator);
   };
 
   return {
     currency,
+    thousandSeparator,
+    decimalSeparator,
     formatCurrency,
   };
 };
@@ -151,5 +155,43 @@ export const useSync = () => {
   return {
     lastSync,
     syncNow,
+  };
+};
+
+export const useCategories = () => {
+  const categories = useAppStore((state) => state.categories);
+  const addCategory = useAppStore((state) => state.addCategory);
+  const updateCategory = useAppStore((state) => state.updateCategory);
+  const deleteCategory = useAppStore((state) => state.deleteCategory);
+
+  const incomeCategories = categories.filter((c) => c.type === 'income');
+  const expenseCategories = categories.filter((c) => c.type === 'expense');
+
+  return {
+    categories,
+    incomeCategories,
+    expenseCategories,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+  };
+};
+
+export const useAccounts = () => {
+  const accounts = useAppStore((state) => state.accounts);
+  const addAccount = useAppStore((state) => state.addAccount);
+  const updateAccount = useAppStore((state) => state.updateAccount);
+  const deleteAccount = useAppStore((state) => state.deleteAccount);
+  const updateAccountBalance = useAppStore((state) => state.updateAccountBalance);
+
+  const totalBalance = accounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
+
+  return {
+    accounts,
+    totalBalance,
+    addAccount,
+    updateAccount,
+    deleteAccount,
+    updateAccountBalance,
   };
 };

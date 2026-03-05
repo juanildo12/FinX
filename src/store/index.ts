@@ -11,8 +11,11 @@ import {
   TaxCoupon,
   UserSettings,
   ThemeMode,
+  Category,
+  Account,
 } from '../types';
 import { mockTransactions, mockCards, mockGoals, mockDebts, mockAlerts, mockBudgets } from '../services/mockData';
+import { ALL_CATEGORIES } from '../constants';
 
 interface AppState {
   // Theme
@@ -64,6 +67,19 @@ interface AppState {
   updateTaxCoupon: (id: string, coupon: Partial<TaxCoupon>) => void;
   deleteTaxCoupon: (id: string) => void;
 
+  // Categories
+  categories: Category[];
+  addCategory: (category: Omit<Category, 'id'>) => void;
+  updateCategory: (id: string, category: Partial<Category>) => void;
+  deleteCategory: (id: string) => void;
+
+  // Accounts
+  accounts: Account[];
+  addAccount: (account: Omit<Account, 'id' | 'createdAt' | 'currentBalance'>) => void;
+  updateAccount: (id: string, account: Partial<Account>) => void;
+  deleteAccount: (id: string) => void;
+  updateAccountBalance: (id: string, amount: number) => void;
+
   // Settings
   settings: UserSettings;
   updateSettings: (settings: Partial<UserSettings>) => void;
@@ -82,6 +98,8 @@ const initialSettings: UserSettings = {
   theme: 'light',
   notificationsEnabled: true,
   emailNotifications: true,
+  thousandSeparator: '.',
+  decimalSeparator: ',',
 };
 
 export const useAppStore = create<AppState>()(
@@ -295,6 +313,72 @@ export const useAppStore = create<AppState>()(
           taxCoupons: state.taxCoupons.filter((c) => c.id !== id),
         })),
 
+      // Categories
+      categories: ALL_CATEGORIES,
+      addCategory: (category) =>
+        set((state) => ({
+          categories: [
+            {
+              ...category,
+              id: `cat_${Date.now()}`,
+            },
+            ...state.categories,
+          ],
+        })),
+      updateCategory: (id, category) =>
+        set((state) => ({
+          categories: state.categories.map((c) =>
+            c.id === id ? { ...c, ...category } : c
+          ),
+        })),
+      deleteCategory: (id) =>
+        set((state) => ({
+          categories: state.categories.filter((c) => c.id !== id),
+        })),
+
+      // Accounts
+      accounts: [
+        {
+          id: 'acc_default',
+          name: 'Billetera',
+          type: 'cash',
+          institution: undefined,
+          initialBalance: 0,
+          currentBalance: 0,
+          color: '#10B981',
+          icon: 'wallet',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      addAccount: (account) =>
+        set((state) => ({
+          accounts: [
+            {
+              ...account,
+              id: `acc_${Date.now()}`,
+              currentBalance: account.initialBalance,
+              createdAt: new Date().toISOString(),
+            },
+            ...state.accounts,
+          ],
+        })),
+      updateAccount: (id, account) =>
+        set((state) => ({
+          accounts: state.accounts.map((a) =>
+            a.id === id ? { ...a, ...account } : a
+          ),
+        })),
+      deleteAccount: (id) =>
+        set((state) => ({
+          accounts: state.accounts.filter((a) => a.id !== id),
+        })),
+      updateAccountBalance: (id, amount) =>
+        set((state) => ({
+          accounts: state.accounts.map((a) =>
+            a.id === id ? { ...a, currentBalance: a.currentBalance + amount } : a
+          ),
+        })),
+
       // Settings
       settings: initialSettings,
       updateSettings: (newSettings) =>
@@ -316,6 +400,20 @@ export const useAppStore = create<AppState>()(
           alerts: mockAlerts,
           budgets: mockBudgets,
           taxCoupons: [],
+          categories: ALL_CATEGORIES,
+          accounts: [
+            {
+              id: 'acc_default',
+              name: 'Billetera',
+              type: 'cash' as const,
+              institution: undefined,
+              initialBalance: 0,
+              currentBalance: 0,
+              color: '#10B981',
+              icon: 'wallet',
+              createdAt: new Date().toISOString(),
+            },
+          ],
           settings: initialSettings,
           lastSync: null,
         }),

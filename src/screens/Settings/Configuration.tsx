@@ -54,6 +54,8 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
   const { lastSync, syncNow } = useSync();
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
+  const [showThousandModal, setShowThousandModal] = useState(false);
+  const [showDecimalModal, setShowDecimalModal] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme.mode === 'light' ? 'dark' : 'light');
@@ -126,6 +128,22 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
             <Text variant="caption" color={theme.colors.textMuted}>{settings.language === 'es' ? 'Español' : 'English'}</Text>
           </View>
           <TouchableOpacity><Text variant="body" color={theme.colors.primary}>Cambiar</Text></TouchableOpacity>
+        </View>
+        <Divider spacing={12} />
+        <View style={styles.row}>
+          <View>
+            <Text variant="body">Separador de miles</Text>
+            <Text variant="caption" color={theme.colors.textMuted}>{settings.thousandSeparator === '.' ? 'Punto (.)' : settings.thousandSeparator === ',' ? 'Coma (,)' : settings.thousandSeparator}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowThousandModal(true)}><Text variant="body" color={theme.colors.primary}>Cambiar</Text></TouchableOpacity>
+        </View>
+        <Divider spacing={12} />
+        <View style={styles.row}>
+          <View>
+            <Text variant="body">Separador de decimales</Text>
+            <Text variant="caption" color={theme.colors.textMuted}>{settings.decimalSeparator === ',' ? 'Coma (.)' : settings.decimalSeparator === '.' ? 'Punto (.)' : settings.decimalSeparator}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowDecimalModal(true)}><Text variant="body" color={theme.colors.primary}>Cambiar</Text></TouchableOpacity>
         </View>
       </Card>
 
@@ -211,6 +229,55 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
               )}
             </ScrollView>
             <TouchableOpacity style={[styles.closeButton, { backgroundColor: theme.colors.primary }]} onPress={() => { setShowCurrencyModal(false); setCurrencySearch(''); }}>
+              <Text variant="body" color="#FFFFFF">Cerrar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showThousandModal} transparent animationType="slide" onRequestClose={() => setShowThousandModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowThousandModal(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.card }]} onPress={() => {}}>
+            <Text variant="h3" style={{ marginBottom: 16, textAlign: 'center' }}>Separador de Miles</Text>
+            {[
+              { value: '.', label: 'Punto (.) - Ej: 1.234,56' },
+              { value: ',', label: 'Coma (,) - Ej: 1,234.56' },
+              { value: ' ', label: 'Espacio ( ) - Ej: 1 234,56' },
+            ].map((sep) => (
+              <TouchableOpacity
+                key={sep.value}
+                style={[styles.currencyRow, settings.thousandSeparator === sep.value && { backgroundColor: theme.colors.primary + '20' }]}
+                onPress={() => { updateSettings({ thousandSeparator: sep.value }); setShowThousandModal(false); }}
+              >
+                <Text variant="body">{sep.label}</Text>
+                {settings.thousandSeparator === sep.value && <Text variant="body" color={theme.colors.primary}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.closeButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowThousandModal(false)}>
+              <Text variant="body" color="#FFFFFF">Cerrar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showDecimalModal} transparent animationType="slide" onRequestClose={() => setShowDecimalModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowDecimalModal(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.card }]} onPress={() => {}}>
+            <Text variant="h3" style={{ marginBottom: 16, textAlign: 'center' }}>Separador de Decimales</Text>
+            {[
+              { value: ',', label: 'Coma (,) - Ej: 1.234,56' },
+              { value: '.', label: 'Punto (.) - Ej: 1,234.56' },
+            ].map((sep) => (
+              <TouchableOpacity
+                key={sep.value}
+                style={[styles.currencyRow, settings.decimalSeparator === sep.value && { backgroundColor: theme.colors.primary + '20' }]}
+                onPress={() => { updateSettings({ decimalSeparator: sep.value }); setShowDecimalModal(false); }}
+              >
+                <Text variant="body">{sep.label}</Text>
+                {settings.decimalSeparator === sep.value && <Text variant="body" color={theme.colors.primary}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.closeButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowDecimalModal(false)}>
               <Text variant="body" color="#FFFFFF">Cerrar</Text>
             </TouchableOpacity>
           </Pressable>
