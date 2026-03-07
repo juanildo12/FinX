@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Divider } from '../../components/atoms';
 import { TransactionItem } from '../../components/molecules';
@@ -62,10 +63,22 @@ const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigation }) =
         {item.data.map((transaction, index) => (
           <React.Fragment key={transaction.id}>
             {index > 0 && <Divider spacing={0} />}
-            <TransactionItem
-              transaction={transaction}
-              onPress={() => navigation.navigate('TransactionForm', { transaction })}
-            />
+            <Swipeable
+              renderRightActions={() => (
+                <TouchableOpacity
+                  style={[styles.deleteButton, { backgroundColor: theme.colors.error }]}
+                  onPress={() => handleDelete(transaction.id)}
+                >
+                  <Text style={styles.deleteText}>Eliminar</Text>
+                </TouchableOpacity>
+              )}
+              overshootRight={false}
+            >
+              <TransactionItem
+                transaction={transaction}
+                onPress={() => navigation.navigate('TransactionForm', { transaction })}
+              />
+            </Swipeable>
           </React.Fragment>
         ))}
       </Card>
@@ -118,11 +131,13 @@ const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigation }) =
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+      
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  fabContainer: { position: 'absolute', right: 20 },
   container: {
     flex: 1,
     position: 'relative',
@@ -148,6 +163,17 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 8,
+  },
+  deleteButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    marginBottom: 1,
+  },
+  deleteText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   empty: {
     alignItems: 'center',

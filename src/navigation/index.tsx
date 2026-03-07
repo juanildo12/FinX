@@ -32,6 +32,14 @@ const DashboardStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DashboardMain" component={DashboardScreen} />
+      <Stack.Screen 
+        name="TransactionForm" 
+        component={TransactionFormScreen}
+        options={({ route }: any) => ({ 
+          title: route.params?.transaction ? 'Editar Transacción' : 'Nueva Transacción',
+          presentation: 'modal'
+        })}
+      />
     </Stack.Navigator>
   );
 };
@@ -199,27 +207,6 @@ export const AppNavigator = () => {
             height: 70 + (insets.bottom > 0 ? insets.bottom - 8 : 0),
           },
           tabBarIcon: ({ focused, color, size }) => {
-            if (route.name === 'Add') {
-              return (
-                <View style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: theme.colors.primary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginTop: -30,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 4,
-                  elevation: 5,
-                }}>
-                  <Ionicons name="add" size={28} color="#FFFFFF" />
-                </View>
-              );
-            }
-            
             let iconName: keyof typeof Ionicons.glyphMap;
 
             switch (route.name) {
@@ -228,6 +215,9 @@ export const AppNavigator = () => {
                 break;
               case 'TransactionsTab':
                 iconName = focused ? 'swap-horizontal' : 'swap-horizontal-outline';
+                break;
+              case 'Cards':
+                iconName = focused ? 'card' : 'card-outline';
                 break;
               case 'Goals':
                 iconName = focused ? 'flag' : 'flag-outline';
@@ -242,17 +232,6 @@ export const AppNavigator = () => {
             return <Ionicons name={iconName} size={size} color={color} />;
           },
         })}
-        screenListeners={({ navigation }) => ({
-          tabPress: (e) => {
-            if (e.target?.includes('Add')) {
-              e.preventDefault();
-              navigation.navigate('TransactionsTab', {
-                screen: 'TransactionForm',
-                params: { transaction: undefined },
-              });
-            }
-          },
-        })}
       >
         <Tab.Screen
           name="Dashboard"
@@ -263,9 +242,8 @@ export const AppNavigator = () => {
           component={TransactionsStack}
         />
         <Tab.Screen
-          name="Add"
-          component={DummyScreen}
-          options={{ tabBarLabel: '' }}
+          name="Cards"
+          component={CardsStack}
         />
         <Tab.Screen
           name="Goals"

@@ -1,18 +1,10 @@
 import React, { useState } from 'react';
-import { Modal } from 'react-native';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  TextInput,
-} from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Text, Card, Input, Button, Divider } from '../../components/atoms';
-import { useTheme, useTransactions, useCurrency, useCategories } from '../../hooks';
-import { Transaction, TransactionType, Category } from '../../types';
+import { Text, Card, Input, Button } from '../../components/atoms';
+import { useTheme, useTransactions, useCurrency, useCategories, useCreditCards, useAccounts } from '../../hooks';
+import { Transaction, TransactionType, PaymentMethod } from '../../types';
 import { validateAmount, getCurrentDate } from '../../utils';
 
 interface TransactionFormScreenProps {
@@ -24,28 +16,14 @@ interface TransactionFormScreenProps {
   };
 }
 
-const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
-  food: 'restaurant-outline',
-  transport: 'car-outline',
-  housing: 'home-outline',
-  utilities: 'flash-outline',
-  entertainment: 'film-outline',
-  health: 'heart-outline',
-  education: 'book-outline',
-  shopping: 'bag-outline',
-  salary: 'cash-outline',
-  investment: 'trending-up-outline',
-  gift: 'gift-outline',
-  other_income: 'wallet-outline',
-  other_expense: 'document-text-outline',
-};
-
 const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigation, route }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { addTransaction, updateTransaction, deleteTransaction } = useTransactions();
   const { currency, formatCurrency } = useCurrency();
   const { incomeCategories, expenseCategories } = useCategories();
+  const { creditCards } = useCreditCards();
+  const { accounts } = useAccounts();
 
   const existingTransaction = route.params?.transaction;
   const isEditing = !!existingTransaction;
@@ -55,7 +33,11 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
   const [description, setDescription] = useState(existingTransaction?.description || '');
   const [category, setCategory] = useState(existingTransaction?.category || 'food');
   const [date, setDate] = useState(existingTransaction?.date || getCurrentDate());
-  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existingTransaction?.paymentMethod || 'cash');
+  const [cardId, setCardId] = useState(existingTransaction?.cardId || '');
+  const [accountId, setAccountId] = useState(existingTransaction?.accountId || 'acc_default');
+  const [notes, setNotes] = useState(existingTransaction?.tags?.[0] || '');
 
   const categories = type === 'income' ? incomeCategories : expenseCategories;
   const selectedCategory = categories.find(c => c.id === category) || categories[0];
@@ -71,11 +53,11 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
       amount: parseFloat(amount),
       description: description || '',
       category,
-      tags: [],
+      tags: notes ? [notes] : [],
       date,
-      paymentMethod: 'cash' as const,
-      cardId: undefined,
-      accountId: 'acc_default',
+      paymentMethod,
+      cardId: paymentMethod === 'card' ? cardId : undefined,
+      accountId,
     };
 
     if (isEditing) {
@@ -110,13 +92,14 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         
-        <View style={styles.typeCard}>
-          <View style={[styles.typeRow, { backgroundColor: theme.colors.surface }]}>
+        <Card style={styles.section}>
+          <View style={styles.typeRow}>
             <TouchableOpacity
               style={[
                 styles.typeButton,
                 {
-                  backgroundColor: type === 'expense' ? theme.colors.expense : 'transparent',
+                  backgroundColor: type === 'expense' ? theme.colors.expense : theme.colors.surface,
+                  borderColor: type === 'expense' ? theme.colors.expense : theme.colors.border,
                 },
               ]}
               onPress={() => {
@@ -137,7 +120,8 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
               style={[
                 styles.typeButton,
                 {
-                  backgroundColor: type === 'income' ? theme.colors.income : 'transparent',
+                  backgroundColor: type === 'income' ? theme.colors.income : theme.colors.surface,
+                  borderColor: type === 'income' ? theme.colors.income : theme.colors.border,
                 },
               ]}
               onPress={() => {
@@ -155,93 +139,147 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        <Card style={styles.amountCard}>
-          <Text variant="small" color={theme.colors.textMuted} style={{ marginBottom: 8 }}>MONTO ({currency})</Text>
-          <View style={styles.amountContainer}>
-            <Text variant="h1" color={type === 'expense' ? theme.colors.expense : theme.colors.income}>
-              {type === 'expense' ? '-' : '+'}
-            </Text>
-            <TextInput
-              placeholder="0.00"
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              style={[styles.amountInput, { color: theme.colors.textPrimary }]}
-              placeholderTextColor={theme.colors.textMuted}
-            />
-          </View>
-          <Text variant="body" color={theme.colors.textMuted} style={{ marginTop: 8 }}>
-            {formatCurrency(parseFloat(amount) || 0)}
-          </Text>
         </Card>
 
         <Card style={styles.section}>
-          <View style={styles.fieldHeader}>
-            <Text variant="caption" color={theme.colors.textMuted}>CATEGORÍA</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.selector, { backgroundColor: theme.colors.surface, borderColor: selectedCategory.color }]}
-            onPress={() => setCategoryModalVisible(true)}
-          >
-            <View style={[styles.selectorIcon, { backgroundColor: selectedCategory.color + '20' }]}>
-              <Ionicons
-                name={selectedCategory.icon as keyof typeof Ionicons.glyphMap}
-                size={18}
-                color={selectedCategory.color}
-              />
-            </View>
-            <Text variant="body" style={{ flex: 1, color: theme.colors.textPrimary }}>{selectedCategory.name}</Text>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
-          </TouchableOpacity>
+          <Text variant="body" style={{ fontWeight: '600', marginBottom: 12, textAlign: 'center' }}>
+            {formatCurrency(parseFloat(amount) || 0)}
+          </Text>
+          <Input 
+            label="Monto" 
+            placeholder="0.00" 
+            value={amount} 
+            onChangeText={setAmount} 
+            keyboardType="decimal-pad" 
+          />
         </Card>
 
-      <Modal
-        visible={categoryModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setCategoryModalVisible(false)}
-      >
-        <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
-              <Text variant="body" color={theme.colors.primary}>Cancelar</Text>
-            </TouchableOpacity>
-            <Text variant="body" style={{ fontWeight: '600' }}>Seleccionar Categoría</Text>
-            <View style={{ width: 60 }} />
-          </View>
-          <ScrollView style={styles.modalContent}>
+        <Card style={styles.section}>
+          <Input label="Descripción" placeholder="Descripción opcional" value={description} onChangeText={setDescription} />
+        </Card>
+
+        <Card style={styles.section}>
+          <Text variant="body" style={{ fontWeight: '600', marginBottom: 12 }}>Categoría</Text>
+          <View style={styles.categoriesGrid}>
             {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={[styles.categoryModalItem, { borderBottomColor: theme.colors.border }]}
-                onPress={() => {
-                  setCategory(cat.id);
-                  setCategoryModalVisible(false);
-                }}
+              <TouchableOpacity 
+                key={cat.id} 
+                style={[
+                  styles.categoryItem, 
+                  { 
+                    backgroundColor: category === cat.id ? cat.color + '20' : theme.colors.surface, 
+                    borderColor: category === cat.id ? cat.color : theme.colors.border 
+                  }
+                ]} 
+                onPress={() => setCategory(cat.id)}
               >
-                <View style={[styles.categoryModalIcon, { backgroundColor: cat.color + '20' }]}>
-                  <Ionicons
-                    name={cat.icon as keyof typeof Ionicons.glyphMap}
-                    size={20}
-                    color={cat.color}
-                  />
-                </View>
-                <Text variant="body" style={{ flex: 1 }}>{cat.name}</Text>
-                {category === cat.id && (
-                  <Ionicons name="checkmark" size={20} color={theme.colors.primary} />
-                )}
+                <Ionicons name={cat.icon as keyof typeof Ionicons.glyphMap} size={18} color={category === cat.id ? cat.color : theme.colors.textSecondary} />
+                <Text variant="caption" color={category === cat.id ? cat.color : theme.colors.textSecondary} style={{ marginLeft: 6 }}>{cat.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+
+        <Card style={styles.section}>
+          <Input label="Fecha" placeholder="YYYY-MM-DD" value={date} onChangeText={setDate} />
+        </Card>
+
+        <Card style={styles.section}>
+          <Text variant="body" style={{ fontWeight: '600', marginBottom: 12 }}>Método de pago</Text>
+          <View style={styles.paymentRow}>
+            <TouchableOpacity
+              style={[
+                styles.paymentButton,
+                { 
+                  borderColor: paymentMethod === 'cash' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: paymentMethod === 'cash' ? theme.colors.primary + '15' : 'transparent'
+                }
+              ]}
+              onPress={() => setPaymentMethod('cash')}
+            >
+              <Ionicons name="cash-outline" size={18} color={paymentMethod === 'cash' ? theme.colors.primary : theme.colors.textMuted} />
+              <Text variant="caption" color={paymentMethod === 'cash' ? theme.colors.primary : theme.colors.textMuted} style={{ marginLeft: 6 }}>Efectivo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.paymentButton,
+                { 
+                  borderColor: paymentMethod === 'card' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: paymentMethod === 'card' ? theme.colors.primary + '15' : 'transparent'
+                }
+              ]}
+              onPress={() => setPaymentMethod('card')}
+            >
+              <Ionicons name="card-outline" size={18} color={paymentMethod === 'card' ? theme.colors.primary : theme.colors.textMuted} />
+              <Text variant="caption" color={paymentMethod === 'card' ? theme.colors.primary : theme.colors.textMuted} style={{ marginLeft: 6 }}>Tarjeta</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.paymentButton,
+                { 
+                  borderColor: paymentMethod === 'bank_transfer' ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: paymentMethod === 'bank_transfer' ? theme.colors.primary + '15' : 'transparent'
+                }
+              ]}
+              onPress={() => setPaymentMethod('bank_transfer')}
+            >
+              <Ionicons name="swap-horizontal-outline" size={18} color={paymentMethod === 'bank_transfer' ? theme.colors.primary : theme.colors.textMuted} />
+              <Text variant="caption" color={paymentMethod === 'bank_transfer' ? theme.colors.primary : theme.colors.textMuted} style={{ marginLeft: 6 }}>Transferencia</Text>
+            </TouchableOpacity>
+          </View>
+
+          {paymentMethod === 'card' && creditCards.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+              {creditCards.map((card) => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={[
+                    styles.accountChip,
+                    { 
+                      borderColor: cardId === card.id ? theme.colors.primary : theme.colors.border,
+                      backgroundColor: cardId === card.id ? theme.colors.primary + '15' : theme.colors.surface
+                    }
+                  ]}
+                  onPress={() => setCardId(card.id)}
+                >
+                  <View style={[styles.cardChipDot, { backgroundColor: card.color }]} />
+                  <Text variant="caption">•••• {card.lastFourDigits}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
+        </Card>
+
+        <Card style={styles.section}>
+          <Text variant="body" style={{ fontWeight: '600', marginBottom: 12 }}>Cuenta</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {accounts.map((acc) => (
+              <TouchableOpacity
+                key={acc.id}
+                style={[
+                  styles.accountChip,
+                  { 
+                    borderColor: accountId === acc.id ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: accountId === acc.id ? theme.colors.primary + '15' : theme.colors.surface
+                  }
+                ]}
+                onPress={() => setAccountId(acc.id)}
+              >
+                <View style={[styles.cardChipDot, { backgroundColor: acc.color }]} />
+                <Text variant="caption">{acc.name}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
-      </Modal>
+        </Card>
 
-      <View style={{ height: 16 }} />
+        <Card style={styles.section}>
+          <Input label="Notas / Tags" placeholder="Agregar notas o tags" value={notes} onChangeText={setNotes} multiline />
+        </Card>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
 
-      <View style={[styles.actionsFixed, { paddingBottom: insets.bottom + 16, paddingHorizontal: 16, paddingTop: 16, backgroundColor: theme.colors.background }]}>
+      <View style={[styles.actionsFixed, { paddingBottom: insets.bottom + 16, paddingHorizontal: 16, paddingTop: 16, backgroundColor: 'transparent' }]}>
         <Button
           title={isEditing ? 'Guardar cambios' : 'Agregar transacción'}
           onPress={handleSave}
@@ -263,26 +301,11 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: 'relative',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  typeCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 0,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 4,
-  },
+  container: { flex: 1, position: 'relative' },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
+  section: { margin: 16, marginBottom: 0 },
+  typeRow: { flexDirection: 'row', gap: 12 },
   typeButton: {
     flex: 1,
     flexDirection: 'row',
@@ -290,103 +313,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 10,
+    borderWidth: 1,
   },
-  amountCard: {
-    margin: 16,
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  amountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  amountInput: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    minWidth: 150,
-    textAlign: 'center',
-  },
-  fieldHeader: {
-    marginBottom: 8,
-  },
-  selector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-  },
-  selectorIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  section: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
+  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryItem: {
-    width: '31%',
-    padding: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
   },
-  categoryIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  categorySelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  categorySelectorIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  modalContainer: { flex: 1 },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  modalContent: { flex: 1 },
-  categoryModalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  categoryModalIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  paymentRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  paymentRow: { flexDirection: 'row', gap: 8 },
   paymentButton: {
     flex: 1,
     flexDirection: 'row',
@@ -395,29 +333,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-  },
-  cardsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  cardButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  accountsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  accountButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
   },
   accountChip: {
     flexDirection: 'row',
@@ -429,18 +344,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
   },
-  actions: {
-    paddingHorizontal: 16,
+  cardChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
   },
-  actionsFixed: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingTop: 16,
-    paddingHorizontal: 16,
-    backgroundColor: 'transparent',
-  },
+  actionsFixed: { position: 'absolute', bottom: 0, left: 0, right: 0 },
 });
 
 export default TransactionFormScreen;

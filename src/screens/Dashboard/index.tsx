@@ -13,7 +13,7 @@ import { useTheme, useTransactions, useAlerts, useCurrency } from '../../hooks';
 import { calculateMonthlySummary, getCurrentMonth, getExpensesByCategory } from '../../utils';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
-import { Transaction, Alert } from '../../types';
+import { Ionicons } from '@expo/vector-icons';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -51,10 +51,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.headerFixed, { paddingTop: insets.top + 16 }]}>
-        <Text variant="h1">FinX</Text>
-        <Text variant="body" color={theme.colors.textSecondary}>
-          Tus finanzas en orden
-        </Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text variant="h1">FinX</Text>
+            <Text variant="body" color={theme.colors.textSecondary}>
+              Tus finanzas en orden
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => navigation.navigate('TransactionForm', {})}
+          >
+            <Ionicons name="add" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <ScrollView
@@ -159,15 +169,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           </>
         )}
 
-        <TouchableOpacity
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          onPress={() => navigation.navigate('TransactionsTab', { screen: 'TransactionForm' })}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </TouchableOpacity>
-
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+        onPress={() => navigation.navigate('TransactionForm', {})}
+      >
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity> */}
     </View>
   );
 };
@@ -185,6 +195,19 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: '#FFFFFF',
     zIndex: 100,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
   },
   summaryCard: {
     marginHorizontal: 20,
@@ -208,6 +231,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
     marginTop: 8,
+  },
+  fabContainer: {
+    position: 'absolute',
+    right: 20,
   },
   fab: {
     position: 'absolute',

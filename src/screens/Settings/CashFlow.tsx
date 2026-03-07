@@ -34,7 +34,7 @@ const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <ScrollView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
       <Card style={styles.summaryCard}>
         <Text variant="caption" color={theme.colors.textMuted}>Balance del año {selectedYear}</Text>
         <Text variant="h2" color={netCashFlow >= 0 ? theme.colors.income : theme.colors.expense} style={{ marginVertical: 8 }}>
@@ -46,15 +46,33 @@ const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) => {
         </View>
       </Card>
 
-      <Card style={styles.chartCard}>
+      <Card style={{ ...styles.chartCard, backgroundColor: '#FFFFFF' }}>
         <Text variant="h3" style={{ marginBottom: 16 }}>Flujo de caja mensual</Text>
         <LineChart
           data={chartData}
-          width={screenWidth - 64}
+          width={screenWidth - 32}
           height={220}
-          chartConfig={{ color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})` }}
+          chartConfig={{ 
+            // color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            //  color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
+            backgroundGradientFrom: "white",
+    backgroundGradientFromOpacity: 0,
+    backgroundGradientTo: "white",
+    backgroundGradientToOpacity: 0.5,
+    color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
+   labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    strokeWidth: 2, // optional, default 3
+     barPercentage: 0.5,
+            fillShadowGradientOpacity: 0,
+          }}
           bezier
-          style={{ marginLeft: -16 }}
+          style={{ marginLeft: -16, backgroundColor: 'transparent' }}
+          withInnerLines={false}
+          withOuterLines={false}
+          withVerticalLines={false}
+          withHorizontalLines={true}
+          withVerticalLabels={true}
+          withHorizontalLabels={true}
         />
         <View style={styles.legend}>
           <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: theme.colors.income }]} /><Text variant="caption">Ingresos</Text></View>

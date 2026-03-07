@@ -1,6 +1,23 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const zustandStorage = {
+  getItem: async (name: string) => {
+    const value = typeof window !== 'undefined' ? localStorage.getItem(name) : null;
+    return value ?? null;
+  },
+  setItem: async (name: string, value: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(name, value);
+    }
+  },
+  removeItem: async (name: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(name);
+    }
+  },
+};
 import {
   Transaction,
   CreditCard,
@@ -420,7 +437,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'finx-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => (typeof window !== 'undefined' ? zustandStorage : AsyncStorage)),
     }
   )
 );
