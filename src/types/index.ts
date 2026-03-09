@@ -1,4 +1,4 @@
-// Tipos principales de la aplicación FinX
+// Tipos principales de la aplicación Vixo
 
 export type TransactionType = 'income' | 'expense';
 export type PaymentMethod = 'cash' | 'card' | 'bank_transfer';
@@ -101,6 +101,7 @@ export interface UserSettings {
   emailNotifications: boolean;
   thousandSeparator: string;
   decimalSeparator: string;
+  voiceAutoSave: boolean;
 }
 
 export interface Account {

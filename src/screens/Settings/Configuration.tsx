@@ -145,6 +145,14 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
           </View>
           <TouchableOpacity onPress={() => setShowDecimalModal(true)}><Text variant="body" color={theme.colors.primary}>Cambiar</Text></TouchableOpacity>
         </View>
+        <Divider spacing={12} />
+        <View style={styles.row}>
+          <View>
+            <Text variant="body">Guardar voz directamente</Text>
+            <Text variant="caption" color={theme.colors.textMuted}>{settings.voiceAutoSave ? 'Se guarda al agregar' : 'Abre el formulario'}</Text>
+          </View>
+          <Switch value={settings.voiceAutoSave} onValueChange={(v) => updateSettings({ voiceAutoSave: v })} trackColor={{ true: theme.colors.primary }} />
+        </View>
       </Card>
 
       <Card style={styles.section}>

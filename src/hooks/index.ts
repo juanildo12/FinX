@@ -195,3 +195,5 @@ export const useAccounts = () => {
     updateAccountBalance,
   };
 };
+
+export { useVoiceRecognition } from './useVoiceRecognition';

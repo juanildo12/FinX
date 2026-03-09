@@ -1,23 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const zustandStorage = {
-  getItem: async (name: string) => {
-    const value = typeof window !== 'undefined' ? localStorage.getItem(name) : null;
-    return value ?? null;
-  },
-  setItem: async (name: string, value: string) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(name, value);
-    }
-  },
-  removeItem: async (name: string) => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(name);
-    }
-  },
-};
 import {
   Transaction,
   CreditCard,
@@ -33,6 +16,8 @@ import {
 } from '../types';
 import { mockTransactions, mockCards, mockGoals, mockDebts, mockAlerts, mockBudgets } from '../services/mockData';
 import { ALL_CATEGORIES } from '../constants';
+
+const storage = createJSONStorage(() => AsyncStorage);
 
 interface AppState {
   // Theme
@@ -92,7 +77,7 @@ interface AppState {
 
   // Accounts
   accounts: Account[];
-  addAccount: (account: Omit<Account, 'id' | 'createdAt' | 'currentBalance'>) => void;
+  addAccount: (account: Omit<Account, 'id' | 'createdAt'>) => void;
   updateAccount: (id: string, account: Partial<Account>) => void;
   deleteAccount: (id: string) => void;
   updateAccountBalance: (id: string, amount: number) => void;
@@ -103,7 +88,7 @@ interface AppState {
 
   // Sync
   lastSync: string | null;
-  setLastSync: (date: string) => void;
+  setLastSync: (date: string | null) => void;
 
   // Reset
   resetToDefaults: () => void;
@@ -117,6 +102,7 @@ const initialSettings: UserSettings = {
   emailNotifications: true,
   thousandSeparator: '.',
   decimalSeparator: ',',
+  voiceAutoSave: false,
 };
 
 export const useAppStore = create<AppState>()(
@@ -436,8 +422,22 @@ export const useAppStore = create<AppState>()(
         }),
     }),
     {
-      name: 'finx-storage',
-      storage: createJSONStorage(() => (typeof window !== 'undefined' ? zustandStorage : AsyncStorage)),
+      name: 'vixo-storage',
+      storage: storage,
+      partialize: (state) => ({
+        transactions: state.transactions,
+        creditCards: state.creditCards,
+        goals: state.goals,
+        debts: state.debts,
+        alerts: state.alerts,
+        budgets: state.budgets,
+        taxCoupons: state.taxCoupons,
+        categories: state.categories,
+        accounts: state.accounts,
+        settings: state.settings,
+        lastSync: state.lastSync,
+        theme: state.theme,
+      }),
     }
   )
 );

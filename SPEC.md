@@ -1,8 +1,8 @@
-# FinX - Especificación del Proyecto
+# Vixo - Especificación del Proyecto
 
 ## 1. Información General
 
-**Nombre:** FinX  
+**Nombre:** Vixo  
 **Tipo:** Aplicación móvil de control financiero personal  
 **Plataformas:** iOS y Android (Expo - React Native)  
 **Estado:** Producción-ready (extensible)
@@ -11,7 +11,7 @@
 
 ## 2. Stack Tecnológico
 
-- **Framework:** React Native con Expo SDK 52
+- **Framework:** React Native con Expo SDK 55
 - **Lenguaje:** TypeScript
 - **Navegación:** @react-navigation/native con Bottom Tabs
 - **Estado:** Zustand con persistencia local (AsyncStorage)

@@ -1,16 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Divider } from '../../components/atoms';
-import { TransactionItem, AlertItem } from '../../components/molecules';
-import { useTheme, useTransactions, useAlerts, useCurrency } from '../../hooks';
-import { calculateMonthlySummary, getCurrentMonth, getExpensesByCategory } from '../../utils';
+import { TransactionItem, AlertItem, VoiceInputButton } from '../../components/molecules';
+import { useTheme, useTransactions, useAlerts, useCurrency, useSettings, useAccounts } from '../../hooks';
+import { calculateMonthlySummary, getCurrentMonth, getExpensesByCategory, parseVoiceTransaction } from '../../utils';
 import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,10 +28,21 @@ interface DashboardScreenProps {
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { transactions } = useTransactions();
+  const { transactions, addTransaction, deleteTransaction } = useTransactions();
   const { alerts } = useAlerts();
   const { formatCurrency } = useCurrency();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const { settings } = useSettings();
+  const { accounts } = useAccounts();
+  const [refreshing, setRefreshing] = useState(false);
+  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
+  const [voiceFormModalVisible, setVoiceFormModalVisible] = useState(false);
+  const [pendingVoiceData, setPendingVoiceData] = useState<{
+    amount: number;
+    description: string;
+    category: string;
+    type: 'income' | 'expense';
+  } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const currentMonth = getCurrentMonth();
   const summary = calculateMonthlySummary(transactions, currentMonth);
@@ -48,22 +63,125 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     legendFontSize: 12,
   }));
 
+  const handleDeleteTransaction = (id: string) => {
+    Alert.alert(
+      'Eliminar transacción',
+      '¿Estás seguro de que quieres eliminar esta transacción?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => deleteTransaction(id),
+        },
+      ]
+    );
+  };
+
+  const handleVoiceInput = (text: string) => {
+    const parsed = parseVoiceTransaction(text);
+    
+    if (!parsed.amount) {
+      Alert.alert(
+        'Transacción por voz',
+        'No se detectó un monto. Por favor intenta de nuevo diciendo por ejemplo: "gasté 50 pesos en comida"',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (settings.voiceAutoSave) {
+      setPendingVoiceData({
+        amount: parsed.amount,
+        description: parsed.description,
+        category: parsed.category,
+        type: parsed.type,
+      });
+      setVoiceModalVisible(true);
+    } else {
+      const categoryName = parsed.category === 'food' ? 'Alimentación' 
+        : parsed.category === 'transport' ? 'Transporte'
+        : parsed.category === 'housing' ? 'Vivienda'
+        : parsed.category === 'utilities' ? 'Servicios'
+        : parsed.category === 'entertainment' ? 'Entretenimiento'
+        : parsed.category === 'health' ? 'Salud'
+        : parsed.category === 'education' ? 'Educación'
+        : parsed.category === 'shopping' ? 'Compras'
+        : parsed.category === 'salary' ? 'Salario'
+        : parsed.category === 'investment' ? 'Inversión'
+        : parsed.category === 'gift' ? 'Regalo'
+        : 'Otros';
+
+      setPendingVoiceData({
+        amount: parsed.amount,
+        description: parsed.description,
+        category: parsed.category,
+        type: parsed.type,
+      });
+      setVoiceFormModalVisible(true);
+    }
+  };
+
+  const handleSaveVoiceTransaction = () => {
+    if (!pendingVoiceData || isSaving) return;
+    
+    setIsSaving(true);
+    const defaultAccount = accounts.find(a => a.type === 'cash') || accounts[0];
+    
+    addTransaction({
+      type: pendingVoiceData.type,
+      amount: pendingVoiceData.amount,
+      description: pendingVoiceData.description,
+      category: pendingVoiceData.category,
+      tags: [],
+      date: new Date().toISOString(),
+      paymentMethod: 'cash',
+      accountId: defaultAccount?.id,
+    });
+    
+    setVoiceModalVisible(false);
+    setPendingVoiceData(null);
+    setIsSaving(false);
+  };
+
+  const getCategoryName = (catId: string) => {
+    return catId === 'food' ? 'Alimentación' 
+      : catId === 'transport' ? 'Transporte'
+      : catId === 'housing' ? 'Vivienda'
+      : catId === 'utilities' ? 'Servicios'
+      : catId === 'entertainment' ? 'Entretenimiento'
+      : catId === 'health' ? 'Salud'
+      : catId === 'education' ? 'Educación'
+      : catId === 'shopping' ? 'Compras'
+      : catId === 'salary' ? 'Salario'
+      : catId === 'investment' ? 'Inversión'
+      : catId === 'gift' ? 'Regalo'
+      : 'Otros';
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.headerFixed, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerRow}>
           <View>
-            <Text variant="h1">FinX</Text>
+            <Text variant="h1">Vixo</Text>
             <Text variant="body" color={theme.colors.textSecondary}>
               Tus finanzas en orden
             </Text>
           </View>
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => navigation.navigate('TransactionForm', {})}
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <VoiceInputButton 
+              onTranscript={handleVoiceInput} 
+              size="small" 
+              variant="primary"
+            />
+            <TouchableOpacity
+              style={[styles.addButton, { backgroundColor: theme.colors.primary, marginLeft: 8 }]}
+              onPress={() => navigation.navigate('TransactionForm', {})}
+            >
+              <Ionicons name="add" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       
@@ -133,13 +251,26 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             recentTransactions.map((transaction, index) => (
               <React.Fragment key={transaction.id}>
                 {index > 0 && <Divider spacing={0} />}
-                <TransactionItem
-                  transaction={transaction}
-                  onPress={() => navigation.navigate('TransactionsTab', { 
-                    screen: 'TransactionForm', 
-                    params: { transaction } 
-                  })}
-                />
+                <Swipeable
+                  renderRightActions={() => (
+                    <TouchableOpacity
+                      style={[styles.deleteButton, { backgroundColor: theme.colors.error }]}
+                      onPress={() => handleDeleteTransaction(transaction.id)}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+                      <Text style={styles.deleteText}>Eliminar</Text>
+                    </TouchableOpacity>
+                  )}
+                  overshootRight={false}
+                >
+                  <TransactionItem
+                    transaction={transaction}
+                    onPress={() => navigation.navigate('TransactionsTab', { 
+                      screen: 'TransactionForm', 
+                      params: { transaction } 
+                    })}
+                  />
+                </Swipeable>
               </React.Fragment>
             ))
           ) : (
@@ -172,12 +303,130 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* <TouchableOpacity
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={() => navigation.navigate('TransactionForm', {})}
+      <Modal
+        visible={voiceModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVoiceModalVisible(false)}
       >
-        <Text style={styles.fabIcon}>+</Text>
-      </TouchableOpacity> */}
+        <Pressable style={styles.modalOverlay} onPress={() => setVoiceModalVisible(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.card }]} onPress={() => {}}>
+            <Text variant="h3" style={{ marginBottom: 16, textAlign: 'center' }}>
+              Confirma tu transacción
+            </Text>
+            
+            {pendingVoiceData && (
+              <View style={styles.modalData}>
+                <View style={styles.modalRow}>
+                  <Text variant="body" color={theme.colors.textMuted}>Monto:</Text>
+                  <Text variant="h3" color={theme.colors.primary}>{pendingVoiceData.amount}</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text variant="body" color={theme.colors.textMuted}>Categoría:</Text>
+                  <Text variant="body">{getCategoryName(pendingVoiceData.category)}</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text variant="body" color={theme.colors.textMuted}>Tipo:</Text>
+                  <Text variant="body" color={pendingVoiceData.type === 'income' ? theme.colors.income : theme.colors.expense}>
+                    {pendingVoiceData.type === 'income' ? '📥 Ingreso' : '📤 Gasto'}
+                  </Text>
+                </View>
+                {pendingVoiceData.description && (
+                  <View style={styles.modalRow}>
+                    <Text variant="body" color={theme.colors.textMuted}>Descripción:</Text>
+                    <Text variant="body">{pendingVoiceData.description}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.colors.expense }]}
+                onPress={() => {
+                  setVoiceModalVisible(false);
+                  setPendingVoiceData(null);
+                }}
+              >
+                <Text variant="body" color="#FFFFFF">🔄 Volver a grabar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleSaveVoiceTransaction}
+                disabled={isSaving}
+              >
+                <Text variant="body" color="#FFFFFF">💾 Guardar</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={voiceFormModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVoiceFormModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setVoiceFormModalVisible(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.card }]} onPress={() => {}}>
+            <Text variant="h3" style={{ marginBottom: 16, textAlign: 'center' }}>
+              Confirma tu transacción
+            </Text>
+            
+            {pendingVoiceData && (
+              <View style={styles.modalData}>
+                <View style={styles.modalRow}>
+                  <Text variant="body" color={theme.colors.textMuted}>Monto:</Text>
+                  <Text variant="h3" color={theme.colors.primary}>{pendingVoiceData.amount}</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text variant="body" color={theme.colors.textMuted}>Categoría:</Text>
+                  <Text variant="body">{getCategoryName(pendingVoiceData.category)}</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text variant="body" color={theme.colors.textMuted}>Tipo:</Text>
+                  <Text variant="body" color={pendingVoiceData.type === 'income' ? theme.colors.income : theme.colors.expense}>
+                    {pendingVoiceData.type === 'income' ? '📥 Ingreso' : '📤 Gasto'}
+                  </Text>
+                </View>
+                {pendingVoiceData.description && (
+                  <View style={styles.modalRow}>
+                    <Text variant="body" color={theme.colors.textMuted}>Descripción:</Text>
+                    <Text variant="body">{pendingVoiceData.description}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.colors.expense }]}
+                onPress={() => {
+                  setVoiceFormModalVisible(false);
+                  setPendingVoiceData(null);
+                }}
+              >
+                <Text variant="body" color="#FFFFFF">🔄 Volver a grabar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => {
+                  if (pendingVoiceData) {
+                    setVoiceFormModalVisible(false);
+                    navigation.navigate('TransactionForm', {
+                      voiceData: pendingVoiceData,
+                    });
+                    setPendingVoiceData(null);
+                  }
+                }}
+              >
+                <Text variant="body" color="#FFFFFF">📝 Editar en formulario</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -201,13 +450,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   addButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
   },
   summaryCard: {
     marginHorizontal: 20,
@@ -255,6 +507,52 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: '#FFFFFF',
     lineHeight: 34,
+  },
+  deleteButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    paddingVertical: 12,
+  },
+  deleteText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalData: {
+    marginBottom: 20,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
   },
 });
 

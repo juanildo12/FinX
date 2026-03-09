@@ -63,7 +63,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       </Card>
 
       <View style={styles.footer}>
-        <Text variant="small" color={theme.colors.textMuted}>FinX v1.0.0</Text>
+        <Text variant="small" color={theme.colors.textMuted}>Vixo v1.0.0</Text>
         {lastSync && <Text variant="small" color={theme.colors.textMuted}>Ultima sincronizacion: {new Date(lastSync).toLocaleString()}</Text>}
       </View>
     </ScrollView>

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FinX",
-    "slug": "FinX",
+    "name": "Vixo",
+    "slug": "Vixo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,20 +13,36 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.FinX"
+      "bundleIdentifier": "com.vixo.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Vixo necesita acceso al micrófono para reconocer transacciones de voz.",
+        "NSSpeechRecognitionUsageDescription": "Vixo usa reconocimiento de voz para registrar transacciones hablando."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#10B981",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.FinX"
+      "package": "com.vixo.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Vixo necesita acceso al micrófono para reconocer transacciones de voz.",
+          "speechRecognitionPermission": "Vixo usa reconocimiento de voz para registrar transacciones hablando."
+        }
+      ]
+    ]
   }
 }

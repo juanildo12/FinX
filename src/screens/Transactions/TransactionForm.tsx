@@ -3,17 +3,24 @@ import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Card, Input, Button } from '../../components/atoms';
+import { VoiceInputButton } from '../../components/molecules';
 import { useTheme, useTransactions, useCurrency, useCategories, useCreditCards, useAccounts } from '../../hooks';
 import { Transaction, TransactionType, PaymentMethod } from '../../types';
-import { validateAmount, getCurrentDate } from '../../utils';
+import { validateAmount, getCurrentDate, parseVoiceTransaction } from '../../utils';
 
 interface TransactionFormScreenProps {
   navigation: any;
   route: {
     params?: {
       transaction?: Transaction;
+      voiceData?: {
+        amount: number | null;
+        description: string;
+        category: string;
+        type: TransactionType;
+      };
     };
-  };
+  }
 }
 
 const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigation, route }) => {
@@ -26,12 +33,13 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
   const { accounts } = useAccounts();
 
   const existingTransaction = route.params?.transaction;
+  const voiceData = route.params?.voiceData;
   const isEditing = !!existingTransaction;
 
-  const [type, setType] = useState<TransactionType>(existingTransaction?.type || 'expense');
-  const [amount, setAmount] = useState(existingTransaction?.amount?.toString() || '');
-  const [description, setDescription] = useState(existingTransaction?.description || '');
-  const [category, setCategory] = useState(existingTransaction?.category || 'food');
+  const [type, setType] = useState<TransactionType>(existingTransaction?.type || voiceData?.type || 'expense');
+  const [amount, setAmount] = useState(existingTransaction?.amount?.toString() || voiceData?.amount?.toString() || '');
+  const [description, setDescription] = useState(existingTransaction?.description || voiceData?.description || '');
+  const [category, setCategory] = useState(existingTransaction?.category || voiceData?.category || 'food');
   const [date, setDate] = useState(existingTransaction?.date || getCurrentDate());
   
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existingTransaction?.paymentMethod || 'cash');
@@ -41,6 +49,32 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
 
   const categories = type === 'income' ? incomeCategories : expenseCategories;
   const selectedCategory = categories.find(c => c.id === category) || categories[0];
+
+  const handleVoiceTranscript = (text: string) => {
+    const parsed = parseVoiceTransaction(text);
+
+    if (parsed.amount) {
+      setAmount(parsed.amount.toString());
+    }
+
+    if (parsed.description) {
+      setDescription(parsed.description);
+    }
+
+    if (parsed.category) {
+      setCategory(parsed.category);
+    }
+
+    if (parsed.type) {
+      setType(parsed.type);
+    }
+
+    Alert.alert(
+      'Transacción por voz',
+      `Monto: ${parsed.amount || 'No detectado'}\nCategoría: ${parsed.category}\nDescripción: ${parsed.description}`,
+      [{ text: 'OK' }]
+    );
+  };
 
   const handleSave = () => {
     if (!validateAmount(amount)) {
@@ -142,9 +176,16 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
         </Card>
 
         <Card style={styles.section}>
-          <Text variant="body" style={{ fontWeight: '600', marginBottom: 12, textAlign: 'center' }}>
-            {formatCurrency(parseFloat(amount) || 0)}
-          </Text>
+          <View style={styles.amountHeader}>
+            <Text variant="body" style={{ fontWeight: '600', textAlign: 'center' }}>
+              {formatCurrency(parseFloat(amount) || 0)}
+            </Text>
+            <VoiceInputButton 
+              onTranscript={handleVoiceTranscript} 
+              size="small" 
+              variant="secondary"
+            />
+          </View>
           <Input 
             label="Monto" 
             placeholder="0.00" 
@@ -314,6 +355,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
+  },
+  amountHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryItem: {

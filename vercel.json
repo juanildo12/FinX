@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npx expo export --platform web && node fix-html.js",
+  "outputDirectory": "dist",
+  "framework": null,
+  "installCommand": "npm install"
+}

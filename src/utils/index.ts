@@ -217,3 +217,5 @@ export const getDaysUntil = (dateString: string): number => {
 export const getCategoryInfo = (categoryId: string): Category | undefined => {
   return ALL_CATEGORIES.find((c) => c.id === categoryId);
 };
+
+export { parseVoiceTransaction } from './voiceParser';

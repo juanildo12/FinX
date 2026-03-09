@@ -1,5 +1,5 @@
 {
-  "name": "finx",
+  "name": "vixo",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -12,12 +12,14 @@
     "@expo/metro-config": "~55.0.9",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-voice/voice": "^3.2.4",
     "@react-navigation/bottom-tabs": "^7.15.3",
     "@react-navigation/native": "^7.1.31",
     "@react-navigation/native-stack": "^7.14.2",
     "expo": "~55.0.4",
     "expo-mail-composer": "^55.0.8",
     "expo-notifications": "^55.0.10",
+    "expo-speech-recognition": "^3.1.1",
     "expo-status-bar": "~55.0.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",

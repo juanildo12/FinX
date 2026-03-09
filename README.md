@@ -1,6 +1,6 @@
-# FinX - App de Control Financiero Personal
+# Vixo - App de Control Financiero Personal
 
-FinX es una aplicación móvil de control financiero personal, desarrollada con React Native y Expo. Permite a los usuarios registrar, organizar y analizar sus finanzas de manera clara y confiable.
+Vixo es una aplicación móvil de control financiero personal, desarrollada con React Native y Expo. Permite a los usuarios registrar, organizar y analizar sus finanzas de manera clara y confiable.
 
 ## Características
 
