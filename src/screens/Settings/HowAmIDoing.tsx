@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card } from '../../components/atoms';
-import { useTheme, useTransactions, useAgeOfMoney } from '../../hooks';
+import { useTheme, useTransactions, useAgeOfMoney, useCurrency } from '../../hooks';
 import { getLast6MonthsCashFlow, getAgeOfMoneyColor, getAgeOfMoneyLabel, calculateMonthlySummary, getCurrentMonth } from '../../utils';
 
 interface HowAmIDoingScreenProps {
@@ -14,6 +14,7 @@ const HowAmIDoingScreen: React.FC<HowAmIDoingScreenProps> = ({ navigation }) => 
   const insets = useSafeAreaInsets();
   const { transactions } = useTransactions();
   const ageOfMoney = useAgeOfMoney();
+  const { formatCurrency } = useCurrency();
   
   const currentMonth = getCurrentMonth();
   const summary = calculateMonthlySummary(transactions, currentMonth);
@@ -54,20 +55,20 @@ const HowAmIDoingScreen: React.FC<HowAmIDoingScreenProps> = ({ navigation }) => 
           <View style={styles.balanceItem}>
             <Text variant="small" color={theme.colors.textMuted}>Ingresos</Text>
             <Text variant="h3" color={theme.colors.income}>
-              {summary.income.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}
+              {formatCurrency(summary.income)}
             </Text>
           </View>
           <View style={styles.balanceItem}>
             <Text variant="small" color={theme.colors.textMuted}>Gastos</Text>
             <Text variant="h3" color={theme.colors.expense}>
-              {summary.expenses.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}
+              {formatCurrency(summary.expenses)}
             </Text>
           </View>
         </View>
         <View style={[styles.savingsContainer, { backgroundColor: summary.savings >= 0 ? theme.colors.income + '15' : theme.colors.expense + '15' }]}>
           <Text variant="small" color={theme.colors.textMuted}>Ahorro</Text>
           <Text variant="h3" color={summary.savings >= 0 ? theme.colors.income : theme.colors.expense}>
-            {summary.savings.toLocaleString('es-ES', { style: 'currency', currency: 'USD' })}
+            {formatCurrency(summary.savings)}
           </Text>
         </View>
       </Card>
@@ -90,7 +91,7 @@ const HowAmIDoingScreen: React.FC<HowAmIDoingScreenProps> = ({ navigation }) => 
                   <View style={styles.barWrapper}>
                     {item.income > 0 && (
                       <Text variant="caption" style={[styles.barValue, { color: theme.colors.income }]}>
-                        {item.income >= 1000 ? `${(item.income/1000).toFixed(0)}k` : item.income}
+                        {item.income >= 1000 ? `${(item.income/1000).toFixed(0)}k` : formatCurrency(item.income)}
                       </Text>
                     )}
                     <View 
