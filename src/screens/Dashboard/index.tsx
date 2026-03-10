@@ -45,7 +45,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const [isSaving, setIsSaving] = useState(false);
 
   const currentMonth = getCurrentMonth();
-  const currentYear = new Date().getFullYear();
   const summary = calculateMonthlySummary(transactions, currentMonth);
   const recentTransactions = transactions.slice(0, 5);
   const pendingAlerts = alerts.filter((a) => !a.isCompleted).slice(0, 3);
@@ -225,60 +224,18 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         {pieData.length > 0 && (
           <Card style={styles.chartCard}>
             <Text variant="h3" style={{ marginBottom: 16 }}>Gastos por categoría</Text>
-            
-            <View style={styles.pieChartContainer}>
-              <PieChart
-                data={pieData}
-                width={screenWidth - 80}
-                height={160}
-                chartConfig={{
-                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                }}
-                accessor="amount"
-                backgroundColor="transparent"
-                paddingLeft="12"
-                absolute={false}
-                hasLegend={false}
-              />
-            </View>
-
-            <View style={styles.categoryList}>
-              {expensesByCategory.slice(0, 5).map((item) => {
-                const total = expensesByCategory.reduce((sum, c) => sum + c.amount, 0);
-                const percentage = ((item.amount / total) * 100).toFixed(0);
-                
-                const categoryLabels: Record<string, string> = {
-                  food: 'Alimentación',
-                  transport: 'Transporte',
-                  housing: 'Vivienda',
-                  utilities: 'Servicios',
-                  entertainment: 'Entretenimiento',
-                  health: 'Salud',
-                  education: 'Educación',
-                  shopping: 'Compras',
-                  other_expense: 'Otros',
-                };
-
-                return (
-                  <View key={item.category} style={styles.categoryItem}>
-                    <View style={styles.categoryLeft}>
-                      <View style={[styles.categoryDot, { backgroundColor: item.color }]} />
-                      <Text variant="body" color={theme.colors.textPrimary}>
-                        {categoryLabels[item.category] || item.category}
-                      </Text>
-                    </View>
-                    <View style={styles.categoryRight}>
-                      <Text variant="body" color={theme.colors.textPrimary}>
-                        {formatCurrency(item.amount)}
-                      </Text>
-                      <Text variant="caption" color={theme.colors.textMuted}>
-                        {percentage}%
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+            <PieChart
+              data={pieData}
+              width={screenWidth - 64}
+              height={180}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              }}
+              accessor="amount"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              absolute
+            />
           </Card>
         )}
 
@@ -323,21 +280,25 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           )}
         </Card>
 
-        <View style={styles.sectionHeader}>
-          <Text variant="h3">Alertas pendientes</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings', { screen: 'Alerts' })}>
-            <Text variant="body" color={theme.colors.primary}>Ver todas</Text>
-          </TouchableOpacity>
-        </View>
+        {pendingAlerts.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text variant="h3">Alertas pendientes</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Settings', { screen: 'Alerts' })}>
+                <Text variant="body" color={theme.colors.primary}>Ver todas</Text>
+              </TouchableOpacity>
+            </View>
 
-        <Card>
-          {pendingAlerts.map((alert, index) => (
-            <React.Fragment key={alert.id}>
-              {index > 0 && <Divider spacing={0} />}
-              <AlertItem alert={alert} />
-            </React.Fragment>
-          ))}
-        </Card>
+            <Card>
+              {pendingAlerts.map((alert, index) => (
+                <React.Fragment key={alert.id}>
+                  {index > 0 && <Divider spacing={0} />}
+                  <AlertItem alert={alert} />
+                </React.Fragment>
+              ))}
+            </Card>
+          </>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -507,41 +468,6 @@ const styles = StyleSheet.create({
   chartCard: {
     marginHorizontal: 20,
     marginBottom: 20,
-  },
-  pieChartContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  donutInner: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryList: {
-    marginTop: 8,
-  },
-  categoryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  categoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  categoryDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 12,
-  },
-  categoryRight: {
-    alignItems: 'flex-end',
   },
   row: {
     flexDirection: 'row',
