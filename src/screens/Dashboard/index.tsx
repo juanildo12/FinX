@@ -15,6 +15,7 @@ import { Text, Card, Divider } from '../../components/atoms';
 import { TransactionItem, AlertItem, VoiceInputButton } from '../../components/molecules';
 import { useTheme, useTransactions, useAlerts, useCurrency, useSettings, useAccounts } from '../../hooks';
 import { calculateMonthlySummary, getCurrentMonth, getExpensesByCategory, parseVoiceTransaction } from '../../utils';
+import { PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -223,42 +224,26 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
         {pieData.length > 0 && (
           <Card style={styles.chartCard}>
-            <Text variant="h3" style={styles.chartTitle}>Gastos por categoría</Text>
+            <Text variant="h3" style={{ marginBottom: 16 }}>Gastos por categoría</Text>
             
-            <View style={styles.modernChartContainer}>
-              <View style={styles.donutContainer}>
-                <View style={[styles.donutOuter, { backgroundColor: theme.colors.surface }]}>
-                  <View style={[styles.donutInner, { backgroundColor: theme.colors.surface }]}>
-                    <Text variant="h3" color={theme.colors.textPrimary}>
-                      {formatCurrency(expensesByCategory.reduce((sum, c) => sum + c.amount, 0))}
-                    </Text>
-                    <Text variant="caption" color={theme.colors.textMuted}>Total</Text>
-                  </View>
-                </View>
-                {expensesByCategory.slice(0, 5).map((item, index) => {
-                  const total = expensesByCategory.reduce((sum, c) => sum + c.amount, 0);
-                  const percentage = ((item.amount / total) * 100).toFixed(0);
-                  const rotation = expensesByCategory.slice(0, index).reduce((sum, c) => sum + (c.amount / total) * 360, 0);
-                  
-                  return (
-                    <View
-                      key={item.category}
-                      style={[
-                        styles.donutSegment,
-                        {
-                          backgroundColor: item.color,
-                          transform: [{ rotate: `${rotation}deg` }],
-                          width: `${parseInt(percentage) / 2}%`,
-                        },
-                      ]}
-                    />
-                  );
-                })}
-              </View>
+            <View style={styles.pieChartContainer}>
+              <PieChart
+                data={pieData}
+                width={screenWidth - 80}
+                height={160}
+                chartConfig={{
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                }}
+                accessor="amount"
+                backgroundColor="transparent"
+                paddingLeft="12"
+                absolute={false}
+                hasLegend={false}
+              />
             </View>
 
             <View style={styles.categoryList}>
-              {expensesByCategory.slice(0, 5).map((item, index) => {
+              {expensesByCategory.slice(0, 5).map((item) => {
                 const total = expensesByCategory.reduce((sum, c) => sum + c.amount, 0);
                 const percentage = ((item.amount / total) * 100).toFixed(0);
                 
@@ -522,35 +507,10 @@ const styles = StyleSheet.create({
   chartCard: {
     marginHorizontal: 20,
     marginBottom: 20,
-    paddingVertical: 8,
   },
-  chartTitle: {
-    marginBottom: 20,
-    marginHorizontal: 4,
-  },
-  modernChartContainer: {
+  pieChartContainer: {
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  donutContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  donutOuter: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: 16,
   },
   donutInner: {
     width: 100,
@@ -558,12 +518,6 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  donutSegment: {
-    position: 'absolute',
-    height: 80,
-    borderRadius: 4,
-    top: 0,
   },
   categoryList: {
     marginTop: 8,
