@@ -197,88 +197,67 @@ export const AppNavigator = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  const getTabIcon = (routeName: string, focused: boolean): keyof typeof Ionicons.glyphMap => {
-    switch (routeName) {
-      case 'Dashboard':
-        return focused ? 'home' : 'home-outline';
-      case 'TransactionsTab':
-        return focused ? 'swap-horizontal' : 'swap-horizontal-outline';
-      case 'Cards':
-        return focused ? 'card' : 'card-outline';
-      case 'Goals':
-        return focused ? 'flag' : 'flag-outline';
-      case 'Settings':
-        return focused ? 'settings' : 'settings-outline';
-      default:
-        return 'ellipse';
-    }
-  };
-
   return (
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarShowLabel: true,
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.textMuted,
+          tabBarShowLabel: false,
           tabBarStyle: {
-            position: 'absolute',
             backgroundColor: theme.colors.card,
-            borderTopWidth: 0,
-            elevation: 0,
-            shadowOpacity: 0,
-            height: 75 + (insets.bottom > 0 ? insets.bottom : 12),
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+            borderTopColor: theme.colors.border,
             paddingTop: 8,
-            marginHorizontal: 20,
-            marginBottom: 16,
-            borderRadius: 24,
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            height: 70 + (insets.bottom > 0 ? insets.bottom - 8 : 0),
           },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '500',
-            marginTop: 2,
-          },
-          tabBarIcon: ({ focused, color }) => {
-            const iconName = getTabIcon(route.name, focused);
-            return (
-              <View style={focused ? styles.activeTabContainer : undefined}>
-                <Ionicons 
-                  name={iconName} 
-                  size={24} 
-                  color={color}
-                  style={focused && styles.activeIcon}
-                />
-              </View>
-            );
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName: keyof typeof Ionicons.glyphMap;
+
+            switch (route.name) {
+              case 'Dashboard':
+                iconName = focused ? 'home' : 'home-outline';
+                break;
+              case 'TransactionsTab':
+                iconName = focused ? 'swap-horizontal' : 'swap-horizontal-outline';
+                break;
+              case 'Cards':
+                iconName = focused ? 'card' : 'card-outline';
+                break;
+              case 'Goals':
+                iconName = focused ? 'flag' : 'flag-outline';
+                break;
+              case 'Settings':
+                iconName = focused ? 'settings' : 'settings-outline';
+                break;
+              default:
+                iconName = 'ellipse';
+            }
+
+            return <Ionicons name={iconName} size={size} color={color} />;
           },
         })}
       >
         <Tab.Screen
           name="Dashboard"
           component={DashboardStack}
-          options={{ tabBarLabel: 'Inicio' }}
         />
         <Tab.Screen
           name="TransactionsTab"
           component={TransactionsStack}
-          options={{ tabBarLabel: 'Movimientos' }}
         />
         <Tab.Screen
           name="Cards"
           component={CardsStack}
-          options={{ tabBarLabel: 'Tarjetas' }}
         />
         <Tab.Screen
           name="Goals"
           component={GoalsStack}
-          options={{ tabBarLabel: 'Metas' }}
         />
         <Tab.Screen
           name="Settings"
           component={SettingsStack}
-          options={{ tabBarLabel: 'Más' }}
         />
       </Tab.Navigator>
     </NavigationContainer>
@@ -286,14 +265,3 @@ export const AppNavigator = () => {
 };
 
 const DummyScreen = () => null;
-
-const styles = StyleSheet.create({
-  activeTabContainer: {
-    backgroundColor: '#ECFDF5',
-    padding: 8,
-    borderRadius: 16,
-  },
-  activeIcon: {
-    transform: [{ scale: 1.1 }],
-  },
-});
