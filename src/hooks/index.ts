@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '../store';
 import { getTheme, Theme } from '../theme';
-import { formatCurrency as formatCurrencyUtil } from '../utils';
+import { formatCurrency as formatCurrencyUtil, calculateAgeOfMoney } from '../utils';
 
 export const useTheme = (): Theme => {
   const theme = useAppStore((state) => state.theme);
@@ -194,6 +194,12 @@ export const useAccounts = () => {
     deleteAccount,
     updateAccountBalance,
   };
+};
+
+export const useAgeOfMoney = () => {
+  const transactions = useAppStore((state) => state.transactions);
+  const ageOfMoney = useMemo(() => calculateAgeOfMoney(transactions), [transactions]);
+  return ageOfMoney;
 };
 
 export { useVoiceRecognition } from './useVoiceRecognition';

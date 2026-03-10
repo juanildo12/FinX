@@ -41,6 +41,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       <Card style={styles.section}>
         <SettingItem icon="heart" title="Salud Financiera" subtitle="Evalua tu capacidad para grandes decisiones" onPress={() => navigation.navigate('FinancialHealth')} color={theme.colors.income} />
         <Divider spacing={0} />
+        <SettingItem icon="help-circle" title="¿Cómo estoy?" subtitle="Antigüedad del dinero y más" onPress={() => navigation.navigate('HowAmIDoing')} color={theme.colors.secondary} />
+        <Divider spacing={0} />
         <SettingItem icon="card" title="Tarjetas de Credito" subtitle="Gestiona tus tarjetas" onPress={() => navigation.navigate('Cards')} color={theme.colors.secondary} />
         <Divider spacing={0} />
         <SettingItem icon="stats-chart" title="Flujo de Caja" subtitle="Analisis mensual y anual" onPress={() => navigation.navigate('CashFlow')} />

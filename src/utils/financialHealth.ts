@@ -167,3 +167,106 @@ export const getHealthLabel = (ratio: number, type: 'debt' | 'savings' | 'cards'
   }
   return 'N/A';
 };
+
+export interface AgeOfMoneyResult {
+  days: number;
+  level: 'excelent' | 'good' | 'fair' | 'poor' | 'verypoor';
+  description: string;
+}
+
+export const calculateAgeOfMoney = (transactions: Transaction[]): AgeOfMoneyResult => {
+  if (transactions.length === 0) {
+    return { days: 0, level: 'verypoor', description: 'Sin transacciones' };
+  }
+
+  const sortedTransactions = [...transactions].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  const incomeEvents: { date: Date; amount: number; remaining: number }[] = [];
+  const spendingDays: number[] = [];
+
+  for (const txn of sortedTransactions) {
+    const txnDate = new Date(txn.date);
+
+    if (txn.type === 'income') {
+      incomeEvents.push({
+        date: txnDate,
+        amount: txn.amount,
+        remaining: txn.amount,
+      });
+    } else if (txn.type === 'expense') {
+      let remainingExpense = txn.amount;
+
+      for (let i = incomeEvents.length - 1; i >= 0 && remainingExpense > 0; i--) {
+        const income = incomeEvents[i];
+        if (income.remaining > 0) {
+          const covered = Math.min(income.remaining, remainingExpense);
+          const daysSinceIncome = Math.floor(
+            (txnDate.getTime() - income.date.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          spendingDays.push(daysSinceIncome);
+          income.remaining -= covered;
+          remainingExpense -= covered;
+        }
+      }
+    }
+  }
+
+  if (spendingDays.length === 0) {
+    const hasIncome = transactions.some((t) => t.type === 'income');
+    if (hasIncome) {
+      return { days: 0, level: 'excelent', description: 'Sin gastos registrados' };
+    }
+    return { days: 0, level: 'verypoor', description: 'Sin ingresos registrados' };
+  }
+
+  const avgDays = Math.round(spendingDays.reduce((a, b) => a + b, 0) / spendingDays.length);
+
+  let level: AgeOfMoneyResult['level'];
+  let description: string;
+
+  if (avgDays >= 30) {
+    level = 'excelent';
+    description = 'Excelente - Tienes tiempo para decidir';
+  } else if (avgDays >= 14) {
+    level = 'good';
+    description = 'Bueno - Buena capacidad de decisión';
+  } else if (avgDays >= 7) {
+    level = 'fair';
+    description = 'Regular - Considera incrementar ingresos';
+  } else if (avgDays >= 1) {
+    level = 'poor';
+    description = 'Bajo - money gastada rápidamente';
+  } else {
+    level = 'verypoor';
+    description = 'Muy bajo - dinero apenas entra y sale';
+  }
+
+  return { days: avgDays, level, description };
+};
+
+export const getAgeOfMoneyColor = (days: number): string => {
+  if (days >= 30) return '#22C55E';
+  if (days >= 14) return '#10B981';
+  if (days >= 7) return '#F59E0B';
+  if (days >= 1) return '#F97316';
+  return '#EF4444';
+};
+
+export const getAgeOfMoneyLabel = (level: AgeOfMoneyResult['level']): string => {
+  switch (level) {
+    case 'excelent':
+      return 'Excelente';
+    case 'good':
+      return 'Bueno';
+    case 'fair':
+      return 'Regular';
+    case 'poor':
+      return 'Bajo';
+    case 'verypoor':
+      return 'Muy bajo';
+    default:
+      return 'N/A';
+  }
+};

@@ -45,6 +45,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const [isSaving, setIsSaving] = useState(false);
 
   const currentMonth = getCurrentMonth();
+  const currentYear = new Date().getFullYear();
   const summary = calculateMonthlySummary(transactions, currentMonth);
   const recentTransactions = transactions.slice(0, 5);
   const pendingAlerts = alerts.filter((a) => !a.isCompleted).slice(0, 3);
@@ -280,25 +281,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           )}
         </Card>
 
-        {pendingAlerts.length > 0 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text variant="h3">Alertas pendientes</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Settings', { screen: 'Alerts' })}>
-                <Text variant="body" color={theme.colors.primary}>Ver todas</Text>
-              </TouchableOpacity>
-            </View>
+        <View style={styles.sectionHeader}>
+          <Text variant="h3">Alertas pendientes</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings', { screen: 'Alerts' })}>
+            <Text variant="body" color={theme.colors.primary}>Ver todas</Text>
+          </TouchableOpacity>
+        </View>
 
-            <Card>
-              {pendingAlerts.map((alert, index) => (
-                <React.Fragment key={alert.id}>
-                  {index > 0 && <Divider spacing={0} />}
-                  <AlertItem alert={alert} />
-                </React.Fragment>
-              ))}
-            </Card>
-          </>
-        )}
+        <Card>
+          {pendingAlerts.map((alert, index) => (
+            <React.Fragment key={alert.id}>
+              {index > 0 && <Divider spacing={0} />}
+              <AlertItem alert={alert} />
+            </React.Fragment>
+          ))}
+        </Card>
 
         <View style={{ height: 100 }} />
       </ScrollView>

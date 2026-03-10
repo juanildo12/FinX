@@ -23,26 +23,25 @@ const categoryKeywords: Record<string, string[]> = {
   other_income: ['otro', 'otros', 'varios', 'ingreso'],
 };
 
-const amountPatterns = [
-  /(\d+(?:\.\d{1,2})?)\s*(?:pesos?|soles?|dolares?|usd|\$\s*)?/i,
-  /\$\s*(\d+(?:\.\d{1,2})?)/i,
-  /(\d+)\s*(?:mxn|ars)/i,
+const amountPatterns: { pattern: RegExp; multiplier: number }[] = [
+  { pattern: /(\d+)\s*mil(?:es)?\b/i, multiplier: 1000 },
+  { pattern: /(\d+)k\b/i, multiplier: 1000 },
+  { pattern: /(\d+)m\b/i, multiplier: 1000000 },
+  { pattern: /\b(cien|mil)\b/i, multiplier: 100 },
+  { pattern: /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+mil\b/i, multiplier: 1000 },
+  { pattern: /(\d+(?:\.\d{1,2})?)\s*(?:pesos?|soles?|dolares?|usd|\$)?/i, multiplier: 1 },
+  { pattern: /\$\s*(\d+(?:\.\d{1,2})?)/i, multiplier: 1 },
+  { pattern: /(\d+)\s*(?:mxn|ars)/i, multiplier: 1 },
 ];
 
-const incomeKeywords = ['ingreso', 'gané', 'recibí', 'cobré', 'paguen', 'salario', 'sueldo', 'inversión', 'dividendo', 'ganancia', 'cobro', 'deposite', 'depósito'];
-const expenseKeywords = ['gasté', 'pagué', 'pague', 'gaste', 'pagué', 'pagando', 'gastando', 'compré', 'compre', 'comprando', 'cobro', 'cuesta', 'costó'];
+const incomeKeywords = ['ingreso', 'gané', 'recibí', 'cobré', 'salario', 'sueldo', 'inversión', 'dividendo', 'ganancia', 'cobro', 'deposite', 'depósito', 'me pagaron', 'me pagó', 'pagado', 'cobrado'];
+const expenseKeywords = ['gasté', 'pagué', 'pague', 'gaste', 'pagando', 'gastando', 'compré', 'compre', 'comprando', 'cuesta', 'costó'];
 
 export const parseVoiceTransaction = (text: string): ParsedVoiceTransaction => {
   const lowerText = text.toLowerCase();
   
-  let amount: number | null = null;
-  for (const pattern of amountPatterns) {
-    const match = lowerText.match(pattern);
-    if (match) {
-      amount = parseFloat(match[1]);
-      break;
-    }
-  }
+  const numberMatch = lowerText.match(/(\d+(?:\.\d{1,2})?)/);
+  const amount = numberMatch ? parseFloat(numberMatch[1]) : null;
 
   let type: TransactionType = 'expense';
   if (incomeKeywords.some(keyword => lowerText.includes(keyword))) {
@@ -63,7 +62,9 @@ export const parseVoiceTransaction = (text: string): ParsedVoiceTransaction => {
   const cleanText = lowerText
     .replace(/\$\s*\d+(?:\.\d{1,2})?/g, '')
     .replace(/\d+(?:\.\d{1,2})?\s*(?:pesos?|soles?|dolares?|usd)/gi, '')
-    .replace(/gasté|gasté|pagué|pagué|ingresé|ingreso|recibí/gi, '')
+    .replace(/\d+/g, '')
+    .replace(/gasté|pagué|compré|recibí|ingreso/gi, '')
+    .replace(/\s+/g, ' ')
     .trim();
 
   const description = cleanText.charAt(0).toUpperCase() + cleanText.slice(1);

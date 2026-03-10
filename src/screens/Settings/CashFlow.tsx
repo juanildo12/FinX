@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
 import { Text, Card } from '../../components/atoms';
 import { useTheme, useTransactions, useCurrency } from '../../hooks';
-import { getCashFlowData, calculateMonthlySummary, getCurrentMonth } from '../../utils';
+import { getCashFlowData, calculateMonthlySummary, getCurrentMonth, getLast6MonthsCashFlow } from '../../utils';
 import { LineChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
@@ -15,10 +15,8 @@ const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) => {
   const theme = useTheme();
   const { transactions } = useTransactions();
   const { formatCurrency } = useCurrency();
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
 
-  const cashFlowData = getCashFlowData(transactions, selectedYear);
+  const cashFlowData = getLast6MonthsCashFlow(transactions);
   const currentMonthSummary = calculateMonthlySummary(transactions, getCurrentMonth());
 
   const totalIncome = cashFlowData.reduce((sum, m) => sum + m.income, 0);
@@ -36,7 +34,7 @@ const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) => {
   return (
     <ScrollView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
       <Card style={styles.summaryCard}>
-        <Text variant="caption" color={theme.colors.textMuted}>Balance del año {selectedYear}</Text>
+        <Text variant="caption" color={theme.colors.textMuted}>Últimos 6 meses</Text>
         <Text variant="h2" color={netCashFlow >= 0 ? theme.colors.income : theme.colors.expense} style={{ marginVertical: 8 }}>
           {formatCurrency(netCashFlow)}
         </Text>
@@ -47,7 +45,7 @@ const CashFlowScreen: React.FC<CashFlowScreenProps> = ({ navigation }) => {
       </Card>
 
       <Card style={{ ...styles.chartCard, backgroundColor: '#FFFFFF' }}>
-        <Text variant="h3" style={{ marginBottom: 16 }}>Flujo de caja mensual</Text>
+        <Text variant="h3" style={{ marginBottom: 16 }}>Ingresos vs Gastos</Text>
         <LineChart
           data={chartData}
           width={screenWidth - 32}

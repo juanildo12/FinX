@@ -6,7 +6,7 @@ interface UseVoiceRecognitionReturn {
   isListening: boolean;
   transcript: string;
   error: string | null;
-  startListening: () => void;
+  startListening: (timeout?: number) => void;
   stopListening: () => void;
   reset: () => void;
 }
@@ -42,7 +42,7 @@ export const useVoiceRecognition = (): UseVoiceRecognitionReturn => {
     setIsListening(false);
   });
 
-  const startListening = useCallback(async () => {
+  const startListening = useCallback(async (timeout: number = 0) => {
     setError(null);
     setTranscript('');
 
@@ -61,6 +61,14 @@ export const useVoiceRecognition = (): UseVoiceRecognitionReturn => {
 
       recognition.onstart = () => {
         setIsListening(true);
+        
+        if (timeout > 0) {
+          setTimeout(() => {
+            if (recognition && recognition.stop) {
+              recognition.stop();
+            }
+          }, timeout * 1000);
+        }
       };
 
       recognition.onresult = (event: any) => {

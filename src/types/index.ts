@@ -102,6 +102,7 @@ export interface UserSettings {
   thousandSeparator: string;
   decimalSeparator: string;
   voiceAutoSave: boolean;
+  voiceTimeout: number;
 }
 
 export interface Account {

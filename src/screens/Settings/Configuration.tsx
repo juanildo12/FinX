@@ -56,6 +56,7 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
   const [currencySearch, setCurrencySearch] = useState('');
   const [showThousandModal, setShowThousandModal] = useState(false);
   const [showDecimalModal, setShowDecimalModal] = useState(false);
+  const [showVoiceTimeoutModal, setShowVoiceTimeoutModal] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme.mode === 'light' ? 'dark' : 'light');
@@ -152,6 +153,16 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
             <Text variant="caption" color={theme.colors.textMuted}>{settings.voiceAutoSave ? 'Se guarda al agregar' : 'Abre el formulario'}</Text>
           </View>
           <Switch value={settings.voiceAutoSave} onValueChange={(v) => updateSettings({ voiceAutoSave: v })} trackColor={{ true: theme.colors.primary }} />
+        </View>
+        <Divider spacing={12} />
+        <View style={styles.row}>
+          <View>
+            <Text variant="body">Tiempo máximo de voz</Text>
+            <Text variant="caption" color={theme.colors.textMuted}>
+              {settings.voiceTimeout === 0 ? 'Hasta que presiones stop' : `${settings.voiceTimeout} segundos`}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowVoiceTimeoutModal(true)}><Text variant="body" color={theme.colors.primary}>Cambiar</Text></TouchableOpacity>
         </View>
       </Card>
 
@@ -286,6 +297,34 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={[styles.closeButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowDecimalModal(false)}>
+              <Text variant="body" color="#FFFFFF">Cerrar</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showVoiceTimeoutModal} transparent animationType="slide" onRequestClose={() => setShowVoiceTimeoutModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowVoiceTimeoutModal(false)}>
+          <Pressable style={[styles.modalContent, { backgroundColor: theme.colors.card }]} onPress={() => {}}>
+            <Text variant="h3" style={{ marginBottom: 16, textAlign: 'center' }}>Tiempo máximo de voz</Text>
+            {[
+              { value: 0, label: 'Hasta que presiones stop' },
+              { value: 3, label: '3 segundos' },
+              { value: 5, label: '5 segundos' },
+              { value: 10, label: '10 segundos' },
+              { value: 15, label: '15 segundos' },
+              { value: 30, label: '30 segundos' },
+            ].map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.currencyRow, settings.voiceTimeout === opt.value && { backgroundColor: theme.colors.primary + '20' }]}
+                onPress={() => { updateSettings({ voiceTimeout: opt.value }); setShowVoiceTimeoutModal(false); }}
+              >
+                <Text variant="body">{opt.label}</Text>
+                {settings.voiceTimeout === opt.value && <Text variant="body" color={theme.colors.primary}>✓</Text>}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.closeButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowVoiceTimeoutModal(false)}>
               <Text variant="body" color="#FFFFFF">Cerrar</Text>
             </TouchableOpacity>
           </Pressable>

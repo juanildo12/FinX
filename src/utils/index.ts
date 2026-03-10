@@ -136,6 +136,28 @@ export const getCashFlowData = (
   return data;
 };
 
+export const getLast6MonthsCashFlow = (
+  transactions: Transaction[]
+): CashFlowData[] => {
+  const data: CashFlowData[] = [];
+  const now = new Date();
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+    const summary = calculateMonthlySummary(transactions, monthStr);
+    data.push({
+      month: SHORT_MONTHS[date.getMonth()],
+      income: summary.income,
+      expenses: summary.expenses,
+    });
+  }
+
+  return data;
+};
+
 export const getExpensesByCategory = (
   transactions: Transaction[],
   month: string
@@ -219,3 +241,15 @@ export const getCategoryInfo = (categoryId: string): Category | undefined => {
 };
 
 export { parseVoiceTransaction } from './voiceParser';
+export {
+  calculateFinancialHealth,
+  evaluateDecision,
+  getHealthColor,
+  getHealthLabel,
+  calculateAgeOfMoney,
+  getAgeOfMoneyColor,
+  getAgeOfMoneyLabel,
+  type FinancialHealth,
+  type DecisionEvaluation,
+  type AgeOfMoneyResult,
+} from './financialHealth';

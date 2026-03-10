@@ -103,6 +103,7 @@ const initialSettings: UserSettings = {
   thousandSeparator: '.',
   decimalSeparator: ',',
   voiceAutoSave: false,
+  voiceTimeout: 0,
 };
 
 export const useAppStore = create<AppState>()(

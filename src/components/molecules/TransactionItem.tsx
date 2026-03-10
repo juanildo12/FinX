@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../atoms';
 import { useTheme, useCurrency } from '../../hooks';
@@ -9,6 +9,7 @@ import { formatDateShort, getCategoryInfo } from '../../utils';
 interface TransactionItemProps {
   transaction: Transaction;
   onPress?: () => void;
+  onDelete?: () => void;
   showDate?: boolean;
 }
 
@@ -31,6 +32,7 @@ const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
 export const TransactionItem: React.FC<TransactionItemProps> = ({
   transaction,
   onPress,
+  onDelete,
   showDate = true,
 }) => {
   const theme = useTheme();
@@ -77,6 +79,15 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
           <Text variant="small">{formatDateShort(transaction.date)}</Text>
         )}
       </View>
+      {Platform.OS === 'web' && onDelete && (
+        <TouchableOpacity
+          onPress={onDelete}
+          style={[styles.deleteButton, { backgroundColor: theme.colors.error }]}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
@@ -100,5 +111,10 @@ const styles = StyleSheet.create({
   },
   amountContainer: {
     alignItems: 'flex-end',
+  },
+  deleteButton: {
+    marginLeft: 8,
+    padding: 8,
+    borderRadius: 8,
   },
 });

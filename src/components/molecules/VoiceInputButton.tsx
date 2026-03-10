@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, Animated, TextStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '../atoms/Text';
-import { useTheme } from '../../hooks';
+import { useTheme, useSettings } from '../../hooks';
 import { useVoiceRecognition } from '../../hooks/useVoiceRecognition';
 
 interface VoiceInputButtonProps {
@@ -17,6 +17,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
   variant = 'primary',
 }) => {
   const theme = useTheme();
+  const { settings } = useSettings();
   const { isListening, transcript, error, startListening, stopListening, reset } = useVoiceRecognition();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -52,7 +53,7 @@ export const VoiceInputButton: React.FC<VoiceInputButtonProps> = ({
     if (isListening) {
       stopListening();
     } else {
-      startListening();
+      startListening(settings.voiceTimeout);
     }
   };
 

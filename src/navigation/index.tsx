@@ -24,6 +24,7 @@ import ConfigurationScreen from '../screens/Settings/Configuration';
 import FinancialHealthScreen from '../screens/FinancialHealth';
 import CategoriesScreen from '../screens/Categories';
 import AccountsScreen from '../screens/Accounts';
+import HowAmIDoingScreen from '../screens/Settings/HowAmIDoing';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -167,6 +168,11 @@ const SettingsStack = () => {
         name="FinancialHealth" 
         component={FinancialHealthScreen}
         options={{ title: 'Salud Financiera' }}
+      />
+      <Stack.Screen 
+        name="HowAmIDoing" 
+        component={HowAmIDoingScreen}
+        options={{ title: '¿Cómo estoy?' }}
       />
       <Stack.Screen 
         name="Categories" 

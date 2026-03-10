@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +13,7 @@ import { Text, Card, Divider } from '../../components/atoms';
 import { TransactionItem } from '../../components/molecules';
 import { useTheme, useTransactions, useCreditCards } from '../../hooks';
 import { Transaction } from '../../types';
-import { getTransactionsByDate, formatDate, getCurrentMonth } from '../../utils';
+import { getTransactionsByDate, formatDate } from '../../utils';
 
 interface TransactionsScreenProps {
   navigation: any;
@@ -73,10 +74,12 @@ const TransactionsScreen: React.FC<TransactionsScreenProps> = ({ navigation }) =
                 </TouchableOpacity>
               )}
               overshootRight={false}
+              containerStyle={Platform.OS === 'web' ? styles.webSwipeable : undefined}
             >
               <TransactionItem
                 transaction={transaction}
                 onPress={() => navigation.navigate('TransactionForm', { transaction })}
+                onDelete={() => handleDelete(transaction.id)}
               />
             </Swipeable>
           </React.Fragment>
@@ -174,6 +177,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
+  },
+  webSwipeable: {
+    overflow: 'visible',
   },
   empty: {
     alignItems: 'center',
