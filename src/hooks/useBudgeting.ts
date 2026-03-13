@@ -21,6 +21,7 @@ export const useBudgeting = () => {
   const addPlan = (plan: any, selectedCategoryIds?: string[]) => {
     addPlanFromStore(plan, selectedCategoryIds);
   };
+  const deletePlan = useAppStore((state) => state.deletePlan);
   const initializeBudgets = useAppStore((state) => state.initializeBudgets);
   const assignToCategory = useAppStore((state) => state.assignToCategory);
   const togglePinned = useAppStore((state) => state.togglePinned);
@@ -143,5 +144,8 @@ export const useBudgeting = () => {
     addPlan,
     setPlan,
     setCurrentPlan,
+    updateCategoryBudget,
+    setReadyToAssign,
+    deletePlan,
   };
 };

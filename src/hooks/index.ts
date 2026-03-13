@@ -184,11 +184,28 @@ export const useAccounts = () => {
   const deleteAccount = useAppStore((state) => state.deleteAccount);
   const updateAccountBalance = useAppStore((state) => state.updateAccountBalance);
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
+  const totalBalance = accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+
+  const getAccountByName = (name: string) => {
+    return accounts.find(acc => acc.name.toLowerCase() === name.toLowerCase());
+  };
+
+  const getAccountsByIds = (accountIds: string[]) => {
+    return accounts.filter(acc => accountIds.includes(acc.id));
+  };
+
+  const getTotalBalanceByIds = (accountIds: string[]) => {
+    return accounts
+      .filter(acc => accountIds.includes(acc.id))
+      .reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+  };
 
   return {
     accounts,
     totalBalance,
+    getAccountByName,
+    getAccountsByIds,
+    getTotalBalanceByIds,
     addAccount,
     updateAccount,
     deleteAccount,
@@ -203,3 +220,4 @@ export const useAgeOfMoney = () => {
 };
 
 export { useVoiceRecognition } from './useVoiceRecognition';
+export { useBudgeting } from './useBudgeting';

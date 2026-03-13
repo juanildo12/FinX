@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -9,15 +9,20 @@ import {
   TextInput,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Badge, Button, Input } from '../../components/atoms';
-import { useTheme, useCurrency, useBudgeting, useTransactions } from '../../hooks';
+import { useTheme, useCurrency, useBudgeting, useTransactions, useAccounts } from '../../hooks';
 import { ALL_CATEGORIES, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../../constants';
 import { CoverOverspendingModal } from '../../components/organisms/CoverOverspendingModal';
 import { AssignModal } from '../../components/organisms/AssignModal';
 import { PinnedCategoriesModal } from '../../components/organisms/PinnedCategoriesModal';
+import { EditTargetModal } from '../../components/organisms/EditTargetModal';
+import { Numpad } from '../../components/organisms/Numpad';
 import { CategoryContextMenu } from '../../components/molecules/CategoryContextMenu';
 
 const { width } = Dimensions.get('window');
@@ -25,6 +30,66 @@ const { width } = Dimensions.get('window');
 interface PlanScreenProps {
   navigation: any;
 }
+
+interface PlanItemProps {
+  plan: { id: string; name: string; currentMonth: string };
+  isSelected: boolean;
+  onPress: () => void;
+  onDelete: () => void;
+  theme: any;
+}
+
+const PlanItem: React.FC<PlanItemProps> = ({
+  plan,
+  isSelected,
+  onPress,
+  onDelete,
+  theme,
+}) => {
+  const swipeableRef = useRef<Swipeable>(null);
+
+  const handleDeletePress = () => {
+    swipeableRef.current?.close();
+    onDelete();
+  };
+
+  const renderRightActions = () => (
+    <TouchableOpacity
+      style={styles.deleteAction}
+      onPress={handleDeletePress}
+    >
+      <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+    </TouchableOpacity>
+  );
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={renderRightActions}
+      overshootRight={false}
+    >
+      <TouchableOpacity 
+        style={[
+          styles.menuOption,
+          isSelected && { backgroundColor: theme.colors.primary + '20' }
+        ]}
+        onPress={onPress}
+      >
+        <Ionicons 
+          name={isSelected ? 'checkmark-circle' : 'folder-outline'} 
+          size={24} 
+          color={isSelected ? theme.colors.primary : theme.colors.textMuted} 
+        />
+        <View style={{ marginLeft: 12, flex: 1 }}>
+          <Text variant="body">{plan.name}</Text>
+          <Text variant="caption" color={theme.colors.textMuted}>
+            {plan.currentMonth}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
+  );
+};
 
 const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
   const theme = useTheme();
@@ -39,14 +104,37 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
     overspentCategories,
     pinnedCategories,
     categoriesByGroup,
-    calculateReadyToAssign,
     getCategoryInfo,
     togglePinned,
     addPlan,
     setCurrentPlan,
+    updateCategoryBudget,
+    deletePlan,
   } = useBudgeting();
+
+  const handleDeletePlan = (planId: string, planName: string) => {
+    Alert.alert(
+      'Eliminar plan',
+      `¿Estás seguro de que quieres eliminar "${planName}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            deletePlan(planId);
+            if (plans.length === 1) {
+              setShowPlansList(false);
+            }
+          },
+        },
+      ]
+    );
+  };
   
   const { transactions } = useTransactions();
+  const { totalBalance, accounts, updateAccountBalance } = useAccounts();
+  const readyToAssign = totalBalance;
   
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -63,6 +151,9 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
   
   const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [showEditTargetModal, setShowEditTargetModal] = useState(false);
+  const [assigningCategoryId, setAssigningCategoryId] = useState<string | null>(null);
+  const [assignInputValue, setAssignInputValue] = useState('');
 
   const isLoading = !categoryBudgets || categoryBudgets.length === 0;
 
@@ -74,6 +165,7 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         currency: 'DOP',
         currentMonth: currentMonth,
         createdAt: new Date().toISOString(),
+        accountIds: [],
       };
       setPendingPlan(newPlan);
       setNewPlanName('');
@@ -209,12 +301,18 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
     }
   };
 
+  const handleEditTarget = () => {
+    if (selectedCategoryId) {
+      setShowEditTargetModal(true);
+    }
+  };
+
   const contextMenuOptions = [
     { label: 'Agregar Transacción', icon: 'add-circle', iconColor: '#3B82F6', onPress: handleAddTransaction },
     { label: 'Ver Actividad', icon: 'stats-chart', iconColor: '#10B981', onPress: handleViewActivity },
     { label: 'Ver Movimientos', icon: 'time', iconColor: '#F59E0B', onPress: handleViewActivity },
     { label: 'Mover Dinero', icon: 'swap-horizontal', iconColor: '#8B5CF6', onPress: handleMoveMoney },
-    { label: 'Editar Meta', icon: 'flag', iconColor: '#EF4444', onPress: () => Alert.alert('Editar Meta', 'Funcionalidad en desarrollo') },
+    { label: 'Editar Meta', icon: 'flag', iconColor: '#EF4444', onPress: handleEditTarget },
     { label: 'Ver Detalles', icon: 'information-circle', iconColor: '#6B7280', onPress: () => Alert.alert('Ver Detalles', 'Funcionalidad en desarrollo') },
     { label: '...', icon: 'ellipsis-horizontal', iconColor: '#6B7280', onPress: () => {} },
   ];
@@ -247,13 +345,60 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
     );
   };
 
+  const handleAssignPress = (categoryId: string, currentAssigned: number) => {
+    setAssigningCategoryId(categoryId);
+    setAssignInputValue(currentAssigned > 0 ? currentAssigned.toString() : '');
+  };
+
+  const handleAssignDone = () => {
+    if (!assigningCategoryId) return;
+
+    const newAmount = parseFloat(assignInputValue) || 0;
+    const categoryBudget = categoryBudgets.find(cb => cb.categoryId === assigningCategoryId);
+    if (!categoryBudget) return;
+
+    const oldAssigned = categoryBudget.assignedThisMonth || 0;
+    const difference = newAmount - oldAssigned;
+    const remainingReadyToAssign = readyToAssign;
+
+    if (difference > remainingReadyToAssign) {
+      Alert.alert('Warning', 'Not enough in Ready to Assign');
+      setAssigningCategoryId(null);
+      setAssignInputValue('');
+      return;
+    }
+
+    updateCategoryBudget(categoryBudget.id, {
+      assignedThisMonth: newAmount,
+      available: newAmount - (categoryBudget.spent || 0),
+    });
+
+    if (difference > 0 && accounts.length > 0) {
+      accounts.forEach(account => {
+        updateAccountBalance(account.id, -difference);
+      });
+    }
+
+    setAssigningCategoryId(null);
+    setAssignInputValue('');
+  };
+
+  const handleAssignClose = () => {
+    setAssigningCategoryId(null);
+    setAssignInputValue('');
+  };
+
   const renderCategoryItem = (categoryId: string, available: number, assigned: number, spent: number, showLongPress: boolean = false) => {
     const info = getCategoryInfo(categoryId);
+    const isAssigning = assigningCategoryId === categoryId;
+    const displayAssigned = isAssigning ? (parseFloat(assignInputValue) || 0) : assigned;
+    const displayAvailable = displayAssigned - spent;
+
     return (
-      <View key={categoryId} style={styles.categoryRow}>
+      <View key={categoryId} style={[styles.categoryRow, isAssigning && styles.categoryRowAssigning]}>
         <TouchableOpacity 
           style={styles.categoryInfo}
-          onPress={() => togglePinned(categoryId)}
+          onPress={() => handleAssignPress(categoryId, assigned)}
           onLongPress={() => showLongPress && handleLongPressCategory(categoryId)}
           delayLongPress={500}
         >
@@ -267,11 +412,17 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
           <View style={styles.categoryText}>
             <Text variant="body">{info?.name || categoryId}</Text>
             <Text variant="caption" color={theme.colors.textMuted}>
-              Asignado: {formatCurrency(assigned)}
+              Asignado: {formatCurrency(displayAssigned)}
             </Text>
           </View>
         </TouchableOpacity>
-        {renderAvailableBadge(available)}
+        {isAssigning ? (
+          <View style={[styles.assignBadge, { backgroundColor: '#374151' }]}>
+            <Text variant="body" color="#FFFFFF">{formatCurrency(displayAvailable)}</Text>
+          </View>
+        ) : (
+          renderAvailableBadge(available)
+        )}
       </View>
     );
   };
@@ -346,7 +497,7 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
           <View style={styles.bannerContent}>
             <Ionicons name="wallet" size={20} color="#FFFFFF" />
             <Text variant="body" color="#FFFFFF" style={{ marginLeft: 8, flex: 1 }}>
-              {formatCurrency(calculateReadyToAssign)} Listo para asignar
+              {formatCurrency(readyToAssign)} Listo para asignar
             </Text>
           </View>
           <View style={styles.coverButton}>
@@ -449,20 +600,53 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
               <View style={styles.pinnedList}>
                 {pinnedCategories.map(cb => {
                   const info = getCategoryInfo(cb.categoryId);
+                  const assigned = cb.assignedThisMonth || 0;
+                  const spent = cb.spent || 0;
+                  const available = cb.available ?? 0;
+                  
+                  const getBadgeColor = () => {
+                    if (available < 0) return '#EF4444';
+                    if (available > 0) return '#10B981';
+                    return '#374151';
+                  };
+                  
+                  const progressPercent = assigned > 0 
+                    ? Math.max(0, Math.min(100, ((assigned - spent) / assigned) * 100))
+                    : 0;
+                  
+                  const isAssigning = assigningCategoryId === cb.categoryId;
+                  const displayAssigned = isAssigning ? (parseFloat(assignInputValue) || 0) : assigned;
+                  const displayAvailable = displayAssigned - spent;
+
                   return (
                     <TouchableOpacity 
                       key={cb.id} 
-                      style={styles.pinnedRow}
-                      onPress={() => handleLongPressCategory(cb.categoryId)}
+                      style={[styles.pinnedRow, isAssigning && styles.pinnedRowAssigning]}
+                      onPress={() => handleAssignPress(cb.categoryId, assigned)}
                       onLongPress={() => handleLongPressCategory(cb.categoryId)}
                       delayLongPress={500}
                     >
-                      <View style={[styles.pinnedIcon, { backgroundColor: info?.color || '#64748B' }]}>
-                        <Ionicons name={(info?.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={18} color="#FFF" />
+                      <View style={styles.pinnedRowContent}>
+                        <View style={[styles.pinnedIcon, { backgroundColor: info?.color || '#64748B' }]}>
+                          <Ionicons name={(info?.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={18} color="#FFF" />
+                        </View>
+                        <Text variant="body" style={styles.pinnedName}>{info?.name || cb.categoryId}</Text>
+                        <View style={[styles.pinnedBadge, { backgroundColor: getBadgeColor() }]}>
+                          <Text variant="body" color="#FFFFFF">{formatCurrency(available)}</Text>
+                        </View>
                       </View>
-                      <Text variant="body" style={styles.pinnedName}>{info?.name || cb.categoryId}</Text>
-                      <View style={styles.pinnedBadge}>
-                        <Text variant="body" color="#FFFFFF">RD$0.00</Text>
+                      <View style={styles.pinnedProgressContainer}>
+                        <View style={styles.pinnedProgressBar}>
+                          <View 
+                            style={[
+                              styles.pinnedProgressFill, 
+                              { 
+                                width: `${progressPercent}%`,
+                                backgroundColor: assigned > 0 ? '#10B981' : '#374151'
+                              }
+                            ]} 
+                          />
+                        </View>
                       </View>
                     </TouchableOpacity>
                   );
@@ -507,7 +691,7 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
           );
         }))}
 
-        {calculateReadyToAssign <= 0 && overspentCategories.length === 0 && categoryBudgets.length > 0 && (
+        {readyToAssign <= 0 && overspentCategories.length === 0 && categoryBudgets.length > 0 && (
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle" size={48} color={theme.colors.success} />
             <Text variant="body" color={theme.colors.textSecondary} style={{ marginTop: 12, textAlign: 'center' }}>
@@ -527,6 +711,15 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         onClose={() => setShowAssignModal(false)}
       />
 
+      <EditTargetModal
+        visible={showEditTargetModal}
+        category={selectedCategoryId ? categoryBudgets.find(cb => cb.categoryId === selectedCategoryId) || null : null}
+        onClose={() => {
+          setShowEditTargetModal(false);
+          setSelectedCategoryId(null);
+        }}
+      />
+
       <CategoryContextMenu
         visible={contextMenuVisible}
         onClose={() => setContextMenuVisible(false)}
@@ -534,6 +727,39 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         categoryColor={selectedCategoryId ? getCategoryInfo(selectedCategoryId)?.color || theme.colors.primary : theme.colors.primary}
         options={contextMenuOptions}
       />
+
+      {assigningCategoryId && (
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.numpadOverlay}
+        >
+          <View style={styles.numpadHeader}>
+            <TouchableOpacity onPress={handleAssignClose}>
+              <Text variant="body" style={styles.numpadCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text variant="h3" style={styles.numpadTitle}>
+              {getCategoryInfo(assigningCategoryId)?.name || 'Category'}
+            </Text>
+            <TouchableOpacity onPress={handleAssignDone}>
+              <Text variant="body" style={styles.numpadDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.numpadContent}>
+            <View style={styles.assignPreview}>
+              <Text variant="caption" color="#9CA3AF">Assigned</Text>
+              <Text variant="h2" style={styles.previewAmount}>
+                {formatCurrency(parseFloat(assignInputValue) || 0)}
+              </Text>
+            </View>
+          </View>
+          <Numpad
+            value={assignInputValue}
+            onChange={setAssignInputValue}
+            onDone={handleAssignDone}
+            onClose={handleAssignClose}
+          />
+        </KeyboardAvoidingView>
+      )}
 
       <Modal
         visible={showPlanModal}
@@ -716,29 +942,17 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
                 </Text>
               ) : (
                 plans.map(p => (
-                  <TouchableOpacity 
+                  <PlanItem
                     key={p.id}
-                    style={[
-                      styles.menuOption,
-                      p.id === plan?.id && { backgroundColor: theme.colors.primary + '20' }
-                    ]}
+                    plan={p}
+                    isSelected={p.id === plan?.id}
                     onPress={() => {
                       setCurrentPlan(p.id);
                       setShowPlansList(false);
                     }}
-                  >
-                    <Ionicons 
-                      name={p.id === plan?.id ? 'checkmark-circle' : 'folder-outline'} 
-                      size={24} 
-                      color={p.id === plan?.id ? theme.colors.primary : theme.colors.textMuted} 
-                    />
-                    <View style={{ marginLeft: 12, flex: 1 }}>
-                      <Text variant="body">{p.name}</Text>
-                      <Text variant="caption" color={theme.colors.textMuted}>
-                        {p.currentMonth}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                    onDelete={() => handleDeletePlan(p.id, p.name)}
+                    theme={theme}
+                  />
                 ))
               )}
             </ScrollView>
@@ -993,11 +1207,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   pinnedRow: {
+    paddingBottom: 10,
+  },
+  pinnedRowAssigning: {
+    backgroundColor: '#374151',
+  },
+  pinnedRowContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderBottomWidth: 0,
   },
   pinnedIcon: {
     width: 36,
@@ -1013,10 +1232,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   pinnedBadge: {
-    backgroundColor: '#374151',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 16,
+  },
+  pinnedProgressContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  pinnedProgressBar: {
+    height: 4,
+    backgroundColor: '#374151',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  pinnedProgressFill: {
+    height: '100%',
+    borderRadius: 2,
   },
   categoryModalContainer: {
     backgroundColor: '#0F172A',
@@ -1092,6 +1324,59 @@ const styles = StyleSheet.create({
   },
   categoryCheckbox: {
     marginLeft: 8,
+  },
+  categoryRowAssigning: {
+    backgroundColor: '#374151',
+  },
+  assignBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  numpadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0F172A',
+    justifyContent: 'flex-end',
+  },
+  numpadHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  numpadCancelText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  numpadTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  numpadDoneText: {
+    color: '#3B82F6',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  numpadContent: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  assignPreview: {
+    alignItems: 'center',
+  },
+  previewAmount: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: '600',
+  },
+  deleteAction: {
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
   },
 });
 

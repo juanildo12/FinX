@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Card, Input, Button } from '../../components/atoms';
 import { VoiceInputButton } from '../../components/molecules';
-import { useTheme, useTransactions, useCurrency, useCategories, useCreditCards, useAccounts } from '../../hooks';
+import { useTheme, useTransactions, useCurrency, useCategories, useCreditCards, useAccounts, useBudgeting } from '../../hooks';
 import { Transaction, TransactionType, PaymentMethod } from '../../types';
 import { validateAmount, getCurrentDate, parseVoiceTransaction } from '../../utils';
 
@@ -31,6 +31,7 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
   const { incomeCategories, expenseCategories } = useCategories();
   const { creditCards } = useCreditCards();
   const { accounts } = useAccounts();
+  const { spendFromCategory, categoryBudgets } = useBudgeting();
 
   const existingTransaction = route.params?.transaction;
   const voiceData = route.params?.voiceData;
@@ -82,9 +83,16 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
       return;
     }
 
+    if (!accountId || accountId === 'acc_default') {
+      Alert.alert('Error', 'Por favor selecciona una cuenta');
+      return;
+    }
+
+    const transactionAmount = parseFloat(amount);
+    
     const transactionData = {
       type,
-      amount: parseFloat(amount),
+      amount: transactionAmount,
       description: description || '',
       category,
       tags: notes ? [notes] : [],
@@ -98,6 +106,17 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
       updateTransaction(existingTransaction.id, transactionData);
     } else {
       addTransaction(transactionData);
+      
+      if (type === 'expense') {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const categoryBudget = categoryBudgets.find(
+          cb => cb.categoryId === category && cb.month === currentMonth
+        );
+        
+        if (categoryBudget) {
+          spendFromCategory(category, transactionAmount);
+        }
+      }
     }
 
     navigation.goBack();

@@ -80,7 +80,7 @@ interface AppState {
 
   // Accounts
   accounts: Account[];
-  addAccount: (account: Omit<Account, 'id' | 'createdAt'>) => void;
+  addAccount: (account: Omit<Account, 'id' | 'createdAt'>, id?: string) => void;
   updateAccount: (id: string, account: Partial<Account>) => void;
   deleteAccount: (id: string) => void;
   updateAccountBalance: (id: string, amount: number) => void;
@@ -143,17 +143,29 @@ export const useAppStore = create<AppState>()(
       // Transactions
       transactions: mockTransactions,
       addTransaction: (transaction) =>
-        set((state) => ({
-          transactions: [
-            {
-              ...transaction,
-              id: `txn_${Date.now()}`,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            ...state.transactions,
-          ],
-        })),
+        set((state) => {
+          const newTransaction = {
+            ...transaction,
+            id: `txn_${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          
+          let updatedAccounts = state.accounts;
+          if (transaction.accountId && transaction.type) {
+            const amount = transaction.type === 'income' ? transaction.amount : -transaction.amount;
+            updatedAccounts = state.accounts.map((a) =>
+              a.id === transaction.accountId
+                ? { ...a, currentBalance: a.currentBalance + amount }
+                : a
+            );
+          }
+          
+          return {
+            transactions: [newTransaction, ...state.transactions],
+            accounts: updatedAccounts,
+          };
+        }),
       updateTransaction: (id, transaction) =>
         set((state) => ({
           transactions: state.transactions.map((t) =>
@@ -368,25 +380,13 @@ export const useAppStore = create<AppState>()(
         })),
 
       // Accounts
-      accounts: [
-        {
-          id: 'acc_default',
-          name: 'Billetera',
-          type: 'cash',
-          institution: undefined,
-          initialBalance: 0,
-          currentBalance: 0,
-          color: '#10B981',
-          icon: 'wallet',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      addAccount: (account) =>
+      accounts: [],
+      addAccount: (account, id?: string) =>
         set((state) => ({
           accounts: [
             {
               ...account,
-              id: `acc_${Date.now()}`,
+              id: id || `acc_${Date.now()}`,
               currentBalance: account.initialBalance,
               createdAt: new Date().toISOString(),
             },
@@ -473,7 +473,7 @@ export const useAppStore = create<AppState>()(
           return {
             plans: [...state.plans, plan],
             currentPlanId: plan.id,
-            plan,
+            plan: plan,
             categoryBudgets: budgets,
             readyToAssign,
           };

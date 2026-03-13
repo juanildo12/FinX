@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { useTheme } from '../../hooks';
 
@@ -7,12 +7,14 @@ interface BadgeProps {
   label: string;
   color?: string;
   backgroundColor?: string;
+  style?: ViewStyle;
 }
 
 export const Badge: React.FC<BadgeProps> = ({
   label,
   color,
   backgroundColor,
+  style,
 }) => {
   const theme = useTheme();
 
@@ -23,6 +25,7 @@ export const Badge: React.FC<BadgeProps> = ({
         {
           backgroundColor: backgroundColor || theme.colors.primary + '20',
         },
+        style,
       ]}
     >
       <Text

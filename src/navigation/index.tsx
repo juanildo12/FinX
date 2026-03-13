@@ -25,6 +25,7 @@ import FinancialHealthScreen from '../screens/FinancialHealth';
 import CategoriesScreen from '../screens/Categories';
 import AccountsScreen from '../screens/Accounts';
 import HowAmIDoingScreen from '../screens/Settings/HowAmIDoing';
+import PlanScreen from '../screens/Plan';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -188,6 +189,11 @@ const SettingsStack = () => {
         name="Cards" 
         component={CardsStack}
         options={{ title: 'Tarjetas' }}
+      />
+      <Stack.Screen 
+        name="Plan" 
+        component={PlanScreen}
+        options={{ title: 'Plan de Presupuesto' }}
       />
     </Stack.Navigator>
   );

@@ -51,6 +51,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
       </Card>
 
       <Card style={styles.section}>
+        <SettingItem icon="albums" title="Plan de Presupuesto" subtitle="Asigna tu dinero a categorías" onPress={() => navigation.navigate('Plan')} color={theme.colors.primary} />
+        <Divider spacing={0} />
         <SettingItem icon="receipt" title="Cupones Fiscales" subtitle="Almacena tus comprobantes" onPress={() => navigation.navigate('TaxCoupons')} />
         <Divider spacing={0} />
         <SettingItem icon="pricetag" title="Categorías" subtitle="Gestiona tus categorías" onPress={() => navigation.navigate('Categories')} />

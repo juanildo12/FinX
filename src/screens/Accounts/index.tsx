@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -8,10 +8,11 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Card, Input, Button, Divider } from '../../components/atoms';
-import { useTheme, useAccounts, useCurrency, useTransactions } from '../../hooks';
+import { useTheme, useAccounts, useCurrency, useTransactions, useBudgeting } from '../../hooks';
 import { Account, AccountType } from '../../types';
 
 const ACCOUNT_TYPES: { id: AccountType; name: string; icon: string }[] = [
@@ -35,6 +36,85 @@ const ACCOUNT_ICONS = [
 interface AccountsScreenProps {
   navigation: any;
 }
+
+interface AccountItemProps {
+  account: Account;
+  typeInfo: { id: AccountType; name: string; icon: string };
+  stats: { income: number; expenses: number; transfers: number };
+  onPress: () => void;
+  onDelete: () => void;
+  theme: any;
+  formatCurrency: (amount: number) => string;
+}
+
+const AccountItem: React.FC<AccountItemProps> = ({
+  account,
+  typeInfo,
+  stats,
+  onPress,
+  onDelete,
+  theme,
+  formatCurrency,
+}) => {
+  const swipeableRef = useRef<Swipeable>(null);
+
+  const handleDeletePress = () => {
+    swipeableRef.current?.close();
+    onDelete();
+  };
+
+  const renderRightActions = () => (
+    <TouchableOpacity
+      style={styles.deleteAction}
+      onPress={handleDeletePress}
+    >
+      <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+    </TouchableOpacity>
+  );
+
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={renderRightActions}
+      overshootRight={false}
+    >
+      <TouchableOpacity
+        style={styles.accountItem}
+        onPress={onPress}
+      >
+        <View style={[styles.accountIcon, { backgroundColor: account.color + '20' }]}>
+          <Ionicons
+            name={account.icon as keyof typeof Ionicons.glyphMap}
+            size={24}
+            color={account.color}
+          />
+        </View>
+        <View style={styles.accountInfo}>
+          <Text variant="body" style={{ fontWeight: '600' }}>{account.name}</Text>
+          <Text variant="caption" color={theme.colors.textMuted}>
+            {typeInfo.name}{account.institution ? ` • ${account.institution}` : ''}
+          </Text>
+          <View style={styles.accountStats}>
+            <Text variant="small" color={theme.colors.income}>
+              +{formatCurrency(stats.income)}
+            </Text>
+            <Text variant="small" color={theme.colors.expense} style={{ marginLeft: 8 }}>
+              -{formatCurrency(stats.expenses)}
+            </Text>
+            <Text variant="small" color={theme.colors.textMuted} style={{ marginLeft: 8 }}>
+              {stats.transfers} transfer.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.accountBalance}>
+          <Text variant="body" style={{ fontWeight: '600' }}>
+            {formatCurrency(account.currentBalance)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
+  );
+};
 
 const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
   const theme = useTheme();
@@ -113,6 +193,7 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
         type,
         institution: institution.trim() || undefined,
         initialBalance: balance,
+        currentBalance: balance,
         color: selectedColor,
         icon: selectedIcon,
       });
@@ -141,41 +222,16 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
     const typeInfo = getTypeInfo(account.type);
 
     return (
-      <TouchableOpacity
+      <AccountItem
         key={account.id}
-        style={styles.accountItem}
+        account={account}
+        typeInfo={typeInfo}
+        stats={stats}
         onPress={() => openEditModal(account)}
-      >
-        <View style={[styles.accountIcon, { backgroundColor: account.color + '20' }]}>
-          <Ionicons
-            name={account.icon as keyof typeof Ionicons.glyphMap}
-            size={24}
-            color={account.color}
-          />
-        </View>
-        <View style={styles.accountInfo}>
-          <Text variant="body" style={{ fontWeight: '600' }}>{account.name}</Text>
-          <Text variant="caption" color={theme.colors.textMuted}>
-            {typeInfo.name}{account.institution ? ` • ${account.institution}` : ''}
-          </Text>
-          <View style={styles.accountStats}>
-            <Text variant="small" color={theme.colors.income}>
-              +{formatCurrency(stats.income)}
-            </Text>
-            <Text variant="small" color={theme.colors.expense} style={{ marginLeft: 8 }}>
-              -{formatCurrency(stats.expenses)}
-            </Text>
-            <Text variant="small" color={theme.colors.textMuted} style={{ marginLeft: 8 }}>
-              {stats.transfers} transfer.
-            </Text>
-          </View>
-        </View>
-        <View style={styles.accountBalance}>
-          <Text variant="body" style={{ fontWeight: '600' }}>
-            {formatCurrency(account.currentBalance)}
-          </Text>
-        </View>
-      </TouchableOpacity>
+        onDelete={() => handleDelete(account)}
+        theme={theme}
+        formatCurrency={formatCurrency}
+      />
     );
   };
 
@@ -201,11 +257,11 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
           {accounts.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="wallet-outline" size={48} color={theme.colors.textMuted} />
-              <Text variant="body" color={theme.colors.textMuted} style={{ marginTop: 12 }}>
-                No hay cuentas todavía
+              <Text variant="body" color={theme.colors.textMuted} style={{ marginTop: 12, textAlign: 'center' }}>
+                No hay cuentas en este plan{'\n'}Crea una cuenta para comenzar
               </Text>
               <Button
-                title="Agregar cuenta"
+                title="Crear cuenta"
                 onPress={openAddModal}
                 variant="primary"
                 style={{ marginTop: 16 }}
@@ -432,6 +488,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 10,
     borderWidth: 1,
+  },
+  deleteAction: {
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
   },
 });
 

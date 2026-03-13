@@ -9,6 +9,13 @@ export type AlertType = 'payment' | 'budget' | 'goal' | 'debt';
 export type ThemeMode = 'light' | 'dark';
 export type AccountType = 'checking' | 'cash' | 'savings' | 'investment' | 'other';
 
+export interface User {
+  id: string;
+  name: string;
+  email?: string;
+  createdAt: string;
+}
+
 export interface Transaction {
   id: string;
   type: TransactionType;
@@ -123,6 +130,41 @@ export interface Category {
   icon: string;
   color: string;
   type: TransactionType;
+  group?: string;
+  assignedThisMonth?: number;
+  available?: number;
+  pinned?: boolean;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  currency: string;
+  currentMonth: string;
+  createdAt: string;
+}
+
+export interface CategoryBudget {
+  id: string;
+  categoryId: string;
+  planId: string;
+  month: string;
+  group: string;
+  assignedThisMonth: number;
+  available: number;
+  spent: number;
+  pinned: boolean;
+  target?: number;
+  targetDay?: number;
+  repeatEnabled?: boolean;
+  repeatAmount?: number;
+}
+
+export interface ReadyToAssign {
+  id: string;
+  planId: string;
+  month: string;
+  amount: number;
 }
 
 export interface MonthlySummary {
