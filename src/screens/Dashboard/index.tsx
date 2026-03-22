@@ -241,7 +241,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
         <View style={styles.sectionHeader}>
           <Text variant="h3">Últimas transacciones</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('TransactionsTab')}>
+          <TouchableOpacity onPress={() => navigation.navigate('TransactionsTab', { 
+            screen: undefined,
+            params: undefined 
+          })}>
             <Text variant="body" color={theme.colors.primary}>Ver todas</Text>
           </TouchableOpacity>
         </View>

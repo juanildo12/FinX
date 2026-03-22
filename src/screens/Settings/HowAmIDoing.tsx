@@ -184,6 +184,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  chartHeader: {
+    marginBottom: 8,
+  },
+  barValue: {
+    fontSize: 10,
+    textAlign: 'center',
+  },
   chartContainer: {
     height: 180,
     marginTop: 8,

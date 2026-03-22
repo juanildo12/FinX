@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 
 interface UseVoiceRecognitionReturn {
   isListening: boolean;
@@ -15,32 +14,6 @@ export const useVoiceRecognition = (): UseVoiceRecognitionReturn => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  // Register event listeners at top level
-  useSpeechRecognitionEvent('result', (event) => {
-    const result = event.results[0];
-    if (result) {
-      if (event.isFinal) {
-        setTranscript(result.transcript);
-        setIsListening(false);
-      } else {
-        setTranscript(result.transcript);
-      }
-    }
-  });
-
-  useSpeechRecognitionEvent('error', (event) => {
-    if (event.error === 'no-speech') {
-      setError('No se detectó voz');
-    } else {
-      setError(event.message || 'Error de reconocimiento de voz');
-    }
-    setIsListening(false);
-  });
-
-  useSpeechRecognitionEvent('end', () => {
-    setIsListening(false);
-  });
 
   const startListening = useCallback(async (timeout: number = 0) => {
     setError(null);
@@ -102,41 +75,12 @@ export const useVoiceRecognition = (): UseVoiceRecognitionReturn => {
 
       recognition.start();
     } else {
-      try {
-        const permission = await ExpoSpeechRecognitionModule.getPermissionsAsync();
-        
-        if (!permission.granted) {
-          const requestResult = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-          if (!requestResult.granted) {
-            setError('Permisos de micrófono denegados');
-            return;
-          }
-        }
-
-        ExpoSpeechRecognitionModule.start({
-          lang: 'es-ES',
-          maxAlternatives: 1,
-          continuous: false,
-          interimResults: true,
-        });
-        setIsListening(true);
-      } catch (err: any) {
-        setError(err.message || 'Error al iniciar reconocimiento de voz');
-        setIsListening(false);
-      }
+      setError('Reconocimiento de voz no disponible en esta plataforma');
+      setIsListening(false);
     }
   }, []);
 
   const stopListening = useCallback(() => {
-    if (Platform.OS === 'web') {
-      // Web Speech API se detiene solo
-    } else {
-      try {
-        ExpoSpeechRecognitionModule.stop();
-      } catch (e) {
-        // Ignorar errores al detener
-      }
-    }
     setIsListening(false);
   }, []);
 

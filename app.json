@@ -34,15 +34,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-speech-recognition",
-        {
-          "microphonePermission": "Vixo necesita acceso al micrófono para reconocer transacciones de voz.",
-          "speechRecognitionPermission": "Vixo usa reconocimiento de voz para registrar transacciones hablando."
-        }
-      ]
-    ]
+    }
   }
 }

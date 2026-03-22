@@ -31,6 +31,10 @@ export const AssignModal: React.FC<AssignModalProps> = ({
     getCategoryInfo,
     assignToCategory,
     calculateReadyToAssign,
+    monthlyIncome,
+    savingsPercentage,
+    savingsAmount,
+    availableForExpenses,
   } = useBudgeting();
 
   const [assignments, setAssignments] = useState<Record<string, string>>({});
@@ -98,13 +102,31 @@ export const AssignModal: React.FC<AssignModalProps> = ({
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text variant="body" color={theme.colors.textSecondary}>
+                Ingreso mensual:
+              </Text>
+              <Text variant="h3" color={theme.colors.primary}>
+                {formatCurrency(monthlyIncome)}
+              </Text>
+            </View>
+            {savingsPercentage > 0 && (
+              <View style={[styles.summaryRow, { marginTop: 8 }]}>
+                <Text variant="body" color={theme.colors.textSecondary}>
+                  Ahorro ({savingsPercentage}%):
+                </Text>
+                <Text variant="body" color={theme.colors.success}>
+                  -{formatCurrency(savingsAmount)}
+                </Text>
+              </View>
+            )}
+            <View style={[styles.summaryRow, { marginTop: 8 }]}>
+              <Text variant="body" color={theme.colors.textSecondary}>
                 Disponible para asignar:
               </Text>
               <Text variant="h3" color={theme.colors.primary}>
                 {formatCurrency(calculateReadyToAssign)}
               </Text>
             </View>
-            <View style={[styles.summaryRow, { marginTop: 12 }]}>
+            <View style={[styles.summaryRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' }]}>
               <Text variant="body" color={theme.colors.textSecondary}>
                 Por asignar:
               </Text>

@@ -5,6 +5,7 @@ export type PaymentMethod = 'cash' | 'card' | 'bank_transfer';
 export type CardBrand = 'visa' | 'mastercard' | 'amex' | 'other';
 export type GoalStatus = 'active' | 'completed' | 'cancelled';
 export type DebtStatus = 'active' | 'paid';
+export type DebtType = 'personal' | 'banking';
 export type AlertType = 'payment' | 'budget' | 'goal' | 'debt';
 export type ThemeMode = 'light' | 'dark';
 export type AccountType = 'checking' | 'cash' | 'savings' | 'investment' | 'other';
@@ -58,12 +59,15 @@ export interface FinancialGoal {
 export interface Debt {
   id: string;
   name: string;
+  type: DebtType;
   totalAmount: number;
   remainingAmount: number;
   interestRate: number;
   monthlyPayment: number;
   dueDate: string;
   creditor: string;
+  person?: string;
+  institution?: string;
   status: DebtStatus;
   createdAt: string;
 }
@@ -121,6 +125,7 @@ export interface Account {
   currentBalance: number;
   color: string;
   icon: string;
+  isDefault?: boolean;
   createdAt: string;
 }
 
@@ -142,6 +147,8 @@ export interface Plan {
   currency: string;
   currentMonth: string;
   createdAt: string;
+  monthlyIncome: number;
+  savingsPercentage: number;
 }
 
 export interface CategoryBudget {

@@ -133,12 +133,14 @@ export const useTaxCoupons = () => {
 export const useSettings = () => {
   const settings = useAppStore((state) => state.settings);
   const updateSettings = useAppStore((state) => state.updateSettings);
+  const resetToDefaults = useAppStore((state) => state.resetToDefaults);
   const theme = useAppStore((state) => state.theme);
   const setTheme = useAppStore((state) => state.setTheme);
 
   return {
     settings,
     updateSettings,
+    resetToDefaults,
     theme,
     setTheme,
   };
@@ -183,8 +185,11 @@ export const useAccounts = () => {
   const updateAccount = useAppStore((state) => state.updateAccount);
   const deleteAccount = useAppStore((state) => state.deleteAccount);
   const updateAccountBalance = useAppStore((state) => state.updateAccountBalance);
+  const setDefaultAccount = useAppStore((state) => state.setDefaultAccount);
 
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+
+  const defaultAccount = accounts.find(acc => acc.isDefault === true);
 
   const getAccountByName = (name: string) => {
     return accounts.find(acc => acc.name.toLowerCase() === name.toLowerCase());
@@ -203,6 +208,7 @@ export const useAccounts = () => {
   return {
     accounts,
     totalBalance,
+    defaultAccount,
     getAccountByName,
     getAccountsByIds,
     getTotalBalanceByIds,
@@ -210,6 +216,7 @@ export const useAccounts = () => {
     updateAccount,
     deleteAccount,
     updateAccountBalance,
+    setDefaultAccount,
   };
 };
 

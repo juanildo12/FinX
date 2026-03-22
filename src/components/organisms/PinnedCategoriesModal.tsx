@@ -8,9 +8,8 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme, useBudgeting } from '../../hooks';
+import { useTheme, useBudgeting, useCategories } from '../../hooks';
 import { Text } from '../atoms/Text';
-import { ALL_CATEGORIES, EXPENSE_CATEGORIES } from '../../constants';
 import { Category } from '../../types';
 
 interface PinnedCategoriesModalProps {
@@ -18,8 +17,8 @@ interface PinnedCategoriesModalProps {
   onClose: () => void;
 }
 
-const getCategoryInfoFromList = (categoryId: string): Category | undefined => {
-  return ALL_CATEGORIES.find((c) => c.id === categoryId);
+const getCategoryInfoFromList = (categoryId: string, categoriesList: Category[]): Category | undefined => {
+  return categoriesList.find((c) => c.id === categoryId);
 };
 
 export const PinnedCategoriesModal: React.FC<PinnedCategoriesModalProps> = ({
@@ -27,7 +26,8 @@ export const PinnedCategoriesModal: React.FC<PinnedCategoriesModalProps> = ({
   onClose,
 }) => {
   const theme = useTheme();
-  const { categoryBudgets, togglePinned, pinnedCategories, removeCategoryBudget } = useBudgeting();
+  const { categoryBudgets, togglePinned, pinnedCategories, removeCategoryBudget, addCategoryToPlan } = useBudgeting();
+  const { categories: allCategories } = useCategories();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -37,10 +37,10 @@ export const PinnedCategoriesModal: React.FC<PinnedCategoriesModalProps> = ({
     setSelectedCategories(pinnedCategories.map(cb => cb.categoryId));
   }, [pinnedCategories]);
 
-  // Use expense categories from constants instead of categoryBudgets
+  // Use expense categories from store instead of constants
   const expenseCategories = useMemo(() => {
-    return EXPENSE_CATEGORIES;
-  }, []);
+    return allCategories.filter(c => c.type === 'expense');
+  }, [allCategories]);
 
   const groupedCategories = useMemo(() => {
     const groups: Record<string, typeof expenseCategories> = {
@@ -103,8 +103,13 @@ export const PinnedCategoriesModal: React.FC<PinnedCategoriesModalProps> = ({
       }
     });
     
-    // Note: Adding back categories would require more complex logic to recreate budgets
-    // For now, users can only remove categories from the plan
+    // Add categories that are selected but not in the plan yet
+    selectedCategories.forEach(catId => {
+      const existsInPlan = categoryBudgets.some(cb => cb.categoryId === catId);
+      if (!existsInPlan) {
+        addCategoryToPlan(catId);
+      }
+    });
     
     onClose();
   };
@@ -153,9 +158,6 @@ export const PinnedCategoriesModal: React.FC<PinnedCategoriesModalProps> = ({
               <View style={styles.noResults}>
                 <Text variant="body" style={{ color: '#6B7280', textAlign: 'center', marginBottom: 8 }}>
                   No hay categorías disponibles
-                </Text>
-                <Text variant="caption" style={{ color: '#4B5563', textAlign: 'center' }}>
-                  Expense: {JSON.stringify(EXPENSE_CATEGORIES.map(c => c.name))}
                 </Text>
               </View>
             ) : (

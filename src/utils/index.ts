@@ -1,5 +1,6 @@
 import { Transaction, CashFlowData, MonthlySummary, Category } from '../types';
 import { SHORT_MONTHS, ALL_CATEGORIES } from '../constants';
+import { useAppStore } from '../store';
 
 export const formatCurrency = (amount: number, currency: string = 'USD', thousandSeparator: string = '.', decimalSeparator: string = ','): string => {
   const fixed = amount.toFixed(2);
@@ -237,6 +238,9 @@ export const getDaysUntil = (dateString: string): number => {
 };
 
 export const getCategoryInfo = (categoryId: string): Category | undefined => {
+  const storeCategories = useAppStore.getState().categories;
+  const fromStore = storeCategories.find((c) => c.id === categoryId);
+  if (fromStore) return fromStore;
   return ALL_CATEGORIES.find((c) => c.id === categoryId);
 };
 

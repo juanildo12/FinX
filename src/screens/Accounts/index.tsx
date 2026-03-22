@@ -7,6 +7,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  Switch,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,7 +91,12 @@ const AccountItem: React.FC<AccountItemProps> = ({
           />
         </View>
         <View style={styles.accountInfo}>
-          <Text variant="body" style={{ fontWeight: '600' }}>{account.name}</Text>
+          <View style={styles.accountNameRow}>
+            <Text variant="body" style={{ fontWeight: '600' }}>{account.name}</Text>
+            {account.isDefault && (
+              <Ionicons name="star" size={16} color={theme.colors.primary} style={{ marginLeft: 4 }} />
+            )}
+          </View>
           <Text variant="caption" color={theme.colors.textMuted}>
             {typeInfo.name}{account.institution ? ` • ${account.institution}` : ''}
           </Text>
@@ -119,7 +125,7 @@ const AccountItem: React.FC<AccountItemProps> = ({
 const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { accounts, addAccount, updateAccount, deleteAccount, totalBalance } = useAccounts();
+  const { accounts, addAccount, updateAccount, deleteAccount, totalBalance, setDefaultAccount } = useAccounts();
   const { formatCurrency } = useCurrency();
   const { transactions } = useTransactions();
 
@@ -131,6 +137,7 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
   const [initialBalance, setInitialBalance] = useState('0');
   const [selectedColor, setSelectedColor] = useState('#1E3A5F');
   const [selectedIcon, setSelectedIcon] = useState('wallet');
+  const [setAsDefault, setSetAsDefault] = useState(false);
 
   const getAccountStats = (accountId: string) => {
     const accountTransactions = transactions.filter(t => t.accountId === accountId);
@@ -156,6 +163,7 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
     setInitialBalance('0');
     setSelectedColor('#1E3A5F');
     setSelectedIcon('wallet');
+    setSetAsDefault(false);
     setModalVisible(true);
   };
 
@@ -167,6 +175,7 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
     setInitialBalance(account.initialBalance.toString());
     setSelectedColor(account.color);
     setSelectedIcon(account.icon);
+    setSetAsDefault(account.isDefault === true);
     setModalVisible(true);
   };
 
@@ -187,7 +196,11 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
         color: selectedColor,
         icon: selectedIcon,
       });
+      if (setAsDefault) {
+        setDefaultAccount(editingAccount.id);
+      }
     } else {
+      const newAccountId = `acc_${Date.now()}`;
       addAccount({
         name: name.trim(),
         type,
@@ -196,7 +209,11 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
         currentBalance: balance,
         color: selectedColor,
         icon: selectedIcon,
-      });
+        isDefault: setAsDefault,
+      }, newAccountId);
+      if (setAsDefault) {
+        setDefaultAccount(newAccountId);
+      }
     }
 
     setModalVisible(false);
@@ -398,6 +415,23 @@ const AccountsScreen: React.FC<AccountsScreenProps> = ({ navigation }) => {
               </View>
             </Card>
 
+            <Card style={styles.modalSection}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="body" style={{ fontWeight: '600' }}>Cuenta Predeterminada</Text>
+                  <Text variant="caption" color={theme.colors.textMuted}>
+                    Se seleccionará automáticamente al registrar gastos
+                  </Text>
+                </View>
+                <Switch
+                  value={setAsDefault}
+                  onValueChange={setSetAsDefault}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary + '80' }}
+                  thumbColor={setAsDefault ? theme.colors.primary : theme.colors.surface}
+                />
+              </View>
+            </Card>
+
             <View style={{ height: 40 }} />
           </ScrollView>
         </View>
@@ -432,6 +466,10 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   accountInfo: { flex: 1 },
+  accountNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   accountStats: {
     flexDirection: 'row',
     marginTop: 4,
@@ -488,6 +526,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 10,
     borderWidth: 1,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   deleteAction: {
     backgroundColor: '#EF4444',

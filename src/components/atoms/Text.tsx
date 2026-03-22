@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text as RNText, TextStyle, StyleSheet } from 'react-native';
+import { Text as RNText, TextStyle, StyleProp } from 'react-native';
 import { useTheme } from '../../hooks';
 
 type TextVariant = 'h1' | 'h2' | 'h3' | 'bodyLarge' | 'body' | 'caption' | 'small';
@@ -8,7 +8,7 @@ interface TextProps {
   children: React.ReactNode;
   variant?: TextVariant;
   color?: string;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   numberOfLines?: number;
 }
 

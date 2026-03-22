@@ -38,8 +38,8 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   const theme = useTheme();
   const { formatCurrency } = useCurrency();
   const isExpense = transaction.type === 'expense';
-  const iconName = iconMap[transaction.category] || 'help-circle-outline';
   const categoryInfo = getCategoryInfo(transaction.category);
+  const iconName = (categoryInfo?.icon as keyof typeof Ionicons.glyphMap) || iconMap[transaction.category] || 'help-circle-outline';
 
   return (
     <TouchableOpacity

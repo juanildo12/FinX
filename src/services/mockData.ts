@@ -220,6 +220,7 @@ export const mockGoals: FinancialGoal[] = [
 export const mockDebts: Debt[] = [
   {
     id: 'debt_1',
+    type: 'banking',
     name: 'Préstamo personal',
     totalAmount: 10000,
     remainingAmount: 7500,
@@ -232,6 +233,7 @@ export const mockDebts: Debt[] = [
   },
   {
     id: 'debt_2',
+    type: 'banking',
     name: 'Financiamiento auto',
     totalAmount: 20000,
     remainingAmount: 15000,

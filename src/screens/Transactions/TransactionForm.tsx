@@ -30,7 +30,7 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
   const { currency, formatCurrency } = useCurrency();
   const { incomeCategories, expenseCategories } = useCategories();
   const { creditCards } = useCreditCards();
-  const { accounts } = useAccounts();
+  const { accounts, defaultAccount } = useAccounts();
   const { spendFromCategory, categoryBudgets } = useBudgeting();
 
   const existingTransaction = route.params?.transaction;
@@ -45,7 +45,7 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
   
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(existingTransaction?.paymentMethod || 'cash');
   const [cardId, setCardId] = useState(existingTransaction?.cardId || '');
-  const [accountId, setAccountId] = useState(existingTransaction?.accountId || 'acc_default');
+  const [accountId, setAccountId] = useState(existingTransaction?.accountId || defaultAccount?.id);
   const [notes, setNotes] = useState(existingTransaction?.tags?.[0] || '');
 
   const categories = type === 'income' ? incomeCategories : expenseCategories;
@@ -83,7 +83,7 @@ const TransactionFormScreen: React.FC<TransactionFormScreenProps> = ({ navigatio
       return;
     }
 
-    if (!accountId || accountId === 'acc_default') {
+    if (!accountId) {
       Alert.alert('Error', 'Por favor selecciona una cuenta');
       return;
     }

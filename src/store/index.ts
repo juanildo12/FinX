@@ -84,6 +84,7 @@ interface AppState {
   updateAccount: (id: string, account: Partial<Account>) => void;
   deleteAccount: (id: string) => void;
   updateAccountBalance: (id: string, amount: number) => void;
+  setDefaultAccount: (id: string) => void;
 
   // Settings
   settings: UserSettings;
@@ -98,6 +99,8 @@ interface AppState {
   deletePlan: (planId: string) => void;
   setCurrentPlan: (planId: string) => void;
   initializeBudgets: (planId?: string) => void;
+  updatePlanIncome: (planId: string, monthlyIncome: number) => void;
+  updatePlanSavings: (planId: string, savingsPercentage: number) => void;
   
   // Category Budgets
   categoryBudgets: CategoryBudget[];
@@ -409,6 +412,12 @@ export const useAppStore = create<AppState>()(
             a.id === id ? { ...a, currentBalance: a.currentBalance + amount } : a
           ),
         })),
+      setDefaultAccount: (id: string) =>
+        set((state) => ({
+          accounts: state.accounts.map((a) =>
+            a.id === id ? { ...a, isDefault: true } : { ...a, isDefault: false }
+          ),
+        })),
 
       // Settings
       settings: initialSettings,
@@ -463,18 +472,21 @@ export const useAppStore = create<AppState>()(
             };
           });
           
+          const savingsAmount = plan.monthlyIncome * (plan.savingsPercentage / 100);
+          const availableAmount = plan.monthlyIncome - savingsAmount;
+          
           const readyToAssign: ReadyToAssign = {
             id: `rta_${plan.id}`,
             planId: plan.id,
             month: currentMonth,
-            amount: 0,
+            amount: availableAmount,
           };
           
           return {
             plans: [...state.plans, plan],
             currentPlanId: plan.id,
             plan: plan,
-            categoryBudgets: budgets,
+            categoryBudgets: [...state.categoryBudgets, ...budgets],
             readyToAssign,
           };
         }),
@@ -498,12 +510,53 @@ export const useAppStore = create<AppState>()(
             plan: selectedPlan || null,
           };
         }),
+      updatePlanIncome: (planId, monthlyIncome) =>
+        set((state) => {
+          const updatedPlans = state.plans.map(p =>
+            p.id === planId ? { ...p, monthlyIncome } : p
+          );
+          const currentPlan = state.plan?.id === planId
+            ? { ...state.plan, monthlyIncome }
+            : state.plan;
+          return {
+            plans: updatedPlans,
+            plan: currentPlan,
+          };
+        }),
+      updatePlanSavings: (planId, savingsPercentage) =>
+        set((state) => {
+          const updatedPlans = state.plans.map(p =>
+            p.id === planId ? { ...p, savingsPercentage } : p
+          );
+          const currentPlan = state.plan?.id === planId
+            ? { ...state.plan, savingsPercentage }
+            : state.plan;
+          return {
+            plans: updatedPlans,
+            plan: currentPlan,
+          };
+        }),
       initializeBudgets: (planId) =>
         set((state) => {
+          const seenBudgets = new Map<string, CategoryBudget>();
+          state.categoryBudgets.forEach(budget => {
+            const key = `${budget.categoryId}_${budget.planId}_${budget.month}`;
+            if (!seenBudgets.has(key)) {
+              seenBudgets.set(key, budget);
+            }
+          });
+          
+          const deduplicatedBudgets = Array.from(seenBudgets.values());
+          
+          if (deduplicatedBudgets.length !== state.categoryBudgets.length) {
+            console.log('Deduplicated categoryBudgets:', state.categoryBudgets.length, '->', deduplicatedBudgets.length);
+            return { ...state, categoryBudgets: deduplicatedBudgets };
+          }
+          
           if (state.categoryBudgets.length > 0 && state.plan) {
             return state;
           }
-          
+
           let targetPlanId = planId || state.currentPlanId;
           
           if (!targetPlanId && state.plans.length > 0) {
@@ -518,12 +571,10 @@ export const useAppStore = create<AppState>()(
           
           let planToUse = existingPlan;
           if (!planToUse) {
-            planToUse = {
-              id: targetPlanId || `plan_${Date.now()}`,
-              name: state.plans.length > 0 ? `Plan ${state.plans.length + 1}` : 'El Nuevo',
-              currency: 'DOP',
-              currentMonth,
-              createdAt: new Date().toISOString(),
+            // No crear plan automáticamente - el usuario debe crearlo manualmente
+            return {
+              ...state,
+              categoryBudgets: deduplicatedBudgets,
             };
           }
           
@@ -585,7 +636,7 @@ export const useAppStore = create<AppState>()(
           categoryBudgets: [
             {
               ...budget,
-              id: `cbudget_${Date.now()}`,
+              id: `cbudget_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
             },
             ...state.categoryBudgets,
           ],
@@ -688,15 +739,15 @@ export const useAppStore = create<AppState>()(
       lastSync: null,
       setLastSync: (date) => set({ lastSync: date }),
 
-      // Reset
+      // Reset - App completamente limpia
       resetToDefaults: () =>
         set({
-          transactions: mockTransactions,
-          creditCards: mockCards,
-          goals: mockGoals,
-          debts: mockDebts,
-          alerts: mockAlerts,
-          budgets: mockBudgets,
+          transactions: [],
+          creditCards: [],
+          goals: [],
+          debts: [],
+          alerts: [],
+          budgets: [],
           taxCoupons: [],
           categories: ALL_CATEGORIES,
           accounts: [
@@ -710,11 +761,14 @@ export const useAppStore = create<AppState>()(
               color: '#10B981',
               icon: 'wallet',
               createdAt: new Date().toISOString(),
+              isDefault: true,
             },
           ],
           settings: initialSettings,
           lastSync: null,
+          plans: [],
           plan: null,
+          currentPlanId: null,
           categoryBudgets: [],
           readyToAssign: null,
         }),

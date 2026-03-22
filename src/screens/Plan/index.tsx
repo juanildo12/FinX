@@ -9,20 +9,17 @@ import {
   TextInput,
   Modal,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Badge, Button, Input } from '../../components/atoms';
-import { useTheme, useCurrency, useBudgeting, useTransactions, useAccounts } from '../../hooks';
+import { useTheme, useCurrency, useBudgeting, useTransactions, useAccounts, useCategories } from '../../hooks';
 import { ALL_CATEGORIES, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../../constants';
 import { CoverOverspendingModal } from '../../components/organisms/CoverOverspendingModal';
 import { AssignModal } from '../../components/organisms/AssignModal';
 import { PinnedCategoriesModal } from '../../components/organisms/PinnedCategoriesModal';
 import { EditTargetModal } from '../../components/organisms/EditTargetModal';
-import { Numpad } from '../../components/organisms/Numpad';
 import { CategoryContextMenu } from '../../components/molecules/CategoryContextMenu';
 
 const { width } = Dimensions.get('window');
@@ -110,7 +107,47 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
     setCurrentPlan,
     updateCategoryBudget,
     deletePlan,
+    addCategoryToPlan,
+    updatePlanIncome,
+    updatePlanSavings,
+    calculateReadyToAssign,
+    monthlyIncome,
+    savingsPercentage,
+    savingsAmount,
+    availableForExpenses,
   } = useBudgeting();
+
+  const { categories: allCategories } = useCategories();
+  const { transactions } = useTransactions();
+  const { totalBalance, accounts, updateAccountBalance } = useAccounts();
+
+  const [showCoverModal, setShowCoverModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [showPlansList, setShowPlansList] = useState(false);
+  const [showPinnedModal, setShowPinnedModal] = useState(false);
+  const [showPlanSettingsModal, setShowPlanSettingsModal] = useState(false);
+  const [newPlanName, setNewPlanName] = useState('');
+  const [pendingPlan, setPendingPlan] = useState<{id: string; name: string; currency: string; currentMonth: string; createdAt: string; monthlyIncome: number; savingsPercentage: number} | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(ALL_CATEGORIES.map(c => c.id));
+  const [pinnedExpanded, setPinnedExpanded] = useState(true);
+  const [isAddingToExistingPlan, setIsAddingToExistingPlan] = useState(false);
+  
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [showEditTargetModal, setShowEditTargetModal] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+
+  const [createPlanStep, setCreatePlanStep] = useState(1);
+  const [tempMonthlyIncome, setTempMonthlyIncome] = useState('');
+  const [tempSavingsPercentage, setTempSavingsPercentage] = useState('20');
+
+  const expenseCategoriesList = allCategories.filter((c) => c.type === 'expense');
+  const isLoading = plan && (!categoryBudgets || categoryBudgets.length === 0);
 
   const handleDeletePlan = (planId: string, planName: string) => {
     Alert.alert(
@@ -131,31 +168,6 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
       ]
     );
   };
-  
-  const { transactions } = useTransactions();
-  const { totalBalance, accounts, updateAccountBalance } = useAccounts();
-  const readyToAssign = totalBalance;
-  
-  const [showCoverModal, setShowCoverModal] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [showPlanModal, setShowPlanModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [categorySearchQuery, setCategorySearchQuery] = useState('');
-  const [showMenuModal, setShowMenuModal] = useState(false);
-  const [showPlansList, setShowPlansList] = useState(false);
-  const [showPinnedModal, setShowPinnedModal] = useState(false);
-  const [newPlanName, setNewPlanName] = useState('');
-  const [pendingPlan, setPendingPlan] = useState<{id: string; name: string; currency: string; currentMonth: string; createdAt: string} | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(ALL_CATEGORIES.map(c => c.id));
-  const [pinnedExpanded, setPinnedExpanded] = useState(true);
-  
-  const [contextMenuVisible, setContextMenuVisible] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [showEditTargetModal, setShowEditTargetModal] = useState(false);
-  const [assigningCategoryId, setAssigningCategoryId] = useState<string | null>(null);
-  const [assignInputValue, setAssignInputValue] = useState('');
-
-  const isLoading = !categoryBudgets || categoryBudgets.length === 0;
 
   const handleCreatePlan = () => {
     if (newPlanName.trim()) {
@@ -165,22 +177,89 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         currency: 'DOP',
         currentMonth: currentMonth,
         createdAt: new Date().toISOString(),
-        accountIds: [],
+        monthlyIncome: 0,
+        savingsPercentage: 0,
       };
       setPendingPlan(newPlan);
       setNewPlanName('');
+      setCreatePlanStep(2);
+    }
+  };
+
+  const handleSaveIncomeStep = () => {
+    const income = parseFloat(tempMonthlyIncome) || 0;
+    if (income > 0 && pendingPlan) {
+      setPendingPlan({ ...pendingPlan, monthlyIncome: income });
+      setCreatePlanStep(3);
+    }
+  };
+
+  const handleSaveSavingsStep = () => {
+    const savings = parseFloat(tempSavingsPercentage) || 0;
+    if (pendingPlan) {
+      setPendingPlan({ ...pendingPlan, savingsPercentage: savings });
+      setCreatePlanStep(4);
+    }
+  };
+
+  const handleContinueToCategories = () => {
+    if (pendingPlan) {
+      setSelectedCategories(expenseCategoriesList.map(c => c.id));
+      setIsAddingToExistingPlan(false);
       setShowPlanModal(false);
-      setShowCategoryModal(true);
+      setCreatePlanStep(1);
+      setTempMonthlyIncome('');
+      setTempSavingsPercentage('20');
+      setTimeout(() => {
+        setShowCategoryModal(true);
+      }, 100);
+    }
+  };
+
+  const handleSavePlanSettings = () => {
+    if (plan) {
+      const income = parseFloat(tempMonthlyIncome) || 0;
+      const savings = parseFloat(tempSavingsPercentage) || 0;
+      updatePlanIncome(plan.id, income);
+      updatePlanSavings(plan.id, savings);
+    }
+    setShowPlanSettingsModal(false);
+  };
+
+  const handleOpenPlanSettings = () => {
+    if (plan) {
+      setTempMonthlyIncome(plan.monthlyIncome > 0 ? plan.monthlyIncome.toString() : '');
+      setTempSavingsPercentage(plan.savingsPercentage > 0 ? plan.savingsPercentage.toString() : '20');
+      setShowPlanSettingsModal(true);
     }
   };
 
   const handleConfirmCategories = () => {
-    if (pendingPlan && selectedCategories.length > 0) {
+    if (isAddingToExistingPlan) {
+      selectedCategories.forEach(catId => {
+        addCategoryToPlan(catId);
+      });
+      setSelectedCategories(expenseCategoriesList.map(c => c.id));
+      setShowCategoryModal(false);
+      setIsAddingToExistingPlan(false);
+    } else if (pendingPlan && selectedCategories.length > 0) {
       addPlan(pendingPlan, selectedCategories);
       setPendingPlan(null);
-      setSelectedCategories(ALL_CATEGORIES.map(c => c.id));
+      setSelectedCategories(expenseCategoriesList.map(c => c.id));
       setShowCategoryModal(false);
     }
+  };
+
+  const handleOpenAddCategoryModal = () => {
+    const existingCategoryIds = categoryBudgets.map(cb => cb.categoryId);
+    setSelectedCategories(existingCategoryIds);
+    setIsAddingToExistingPlan(true);
+    setShowCategoryModal(true);
+  };
+
+  const handleOpenCreatePlanModal = () => {
+    setSelectedCategories(expenseCategoriesList.map(c => c.id));
+    setShowCategoryModal(true);
   };
 
   const toggleCategory = (categoryId: string) => {
@@ -202,55 +281,27 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
     );
   }
 
-  if (!plan) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background, padding: 20 }]}>
-        <Text variant="h2">Bienvenido</Text>
-        <Text variant="body" color={theme.colors.textMuted} style={{ marginTop: 12 }}>
-          No tienes un plan de presupuesto. Crea uno para comenzar.
-        </Text>
-        <Button 
-          title="Crear Plan" 
-          onPress={() => setShowPlanModal(true)} 
-          style={{ marginTop: 20 }}
-        />
-        <Modal
-          visible={showPlanModal}
-          animationType="slide"
-          transparent
-          onRequestClose={() => setShowPlanModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
-              <View style={styles.modalHeader}>
-                <Text variant="h3">Nuevo Plan</Text>
-                <TouchableOpacity onPress={() => setShowPlanModal(false)}>
-                  <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.modalContent}>
-                <Input
-                  label="Nombre del Plan"
-                  placeholder="Ej: Plan Mensual"
-                  value={newPlanName}
-                  onChangeText={setNewPlanName}
-                />
-              </View>
-              <View style={styles.modalFooter}>
-                <Button
-                  title="Crear Plan"
-                  onPress={handleCreatePlan}
-                  variant="primary"
-                  fullWidth
-                  disabled={!newPlanName.trim()}
-                />
-              </View>
-            </View>
-          </View>
-        </Modal>
-      </View>
-    );
-  }
+  const renderSinPlanContent = () => (
+    <View style={[styles.container, { backgroundColor: theme.colors.background, padding: 20 }]}>
+      <Text variant="h2">Bienvenido</Text>
+      <Text variant="body" color={theme.colors.textMuted} style={{ marginTop: 12 }}>
+        No tienes un plan de presupuesto. Crea uno para comenzar.
+      </Text>
+      <Button 
+        title="Crear Plan" 
+        onPress={() => {
+          setCreatePlanStep(1);
+          setNewPlanName('');
+          setTempMonthlyIncome('');
+          setTempSavingsPercentage('20');
+          setPendingPlan(null);
+          setSelectedCategories(expenseCategoriesList.map(c => c.id));
+          setShowPlanModal(true);
+        }} 
+        style={{ marginTop: 20 }}
+      />
+    </View>
+  );
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -345,26 +396,28 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
     );
   };
 
-  const handleAssignPress = (categoryId: string, currentAssigned: number) => {
-    setAssigningCategoryId(categoryId);
-    setAssignInputValue(currentAssigned > 0 ? currentAssigned.toString() : '');
+  const handleEditStart = (categoryId: string, currentAssigned: number) => {
+    setEditingCategoryId(categoryId);
+    setEditingValue(currentAssigned > 0 ? currentAssigned.toString() : '');
   };
 
-  const handleAssignDone = () => {
-    if (!assigningCategoryId) return;
-
-    const newAmount = parseFloat(assignInputValue) || 0;
-    const categoryBudget = categoryBudgets.find(cb => cb.categoryId === assigningCategoryId);
-    if (!categoryBudget) return;
+  const handleEditConfirm = (categoryId: string) => {
+    const newAmount = parseFloat(editingValue) || 0;
+    const categoryBudget = categoryBudgets.find(cb => cb.categoryId === categoryId);
+    if (!categoryBudget) {
+      setEditingCategoryId(null);
+      setEditingValue('');
+      return;
+    }
 
     const oldAssigned = categoryBudget.assignedThisMonth || 0;
     const difference = newAmount - oldAssigned;
-    const remainingReadyToAssign = readyToAssign;
+    const remainingReadyToAssign = calculateReadyToAssign;
 
     if (difference > remainingReadyToAssign) {
-      Alert.alert('Warning', 'Not enough in Ready to Assign');
-      setAssigningCategoryId(null);
-      setAssignInputValue('');
+      Alert.alert('Warning', 'No hay suficiente en "Listo para asignar"');
+      setEditingCategoryId(null);
+      setEditingValue('');
       return;
     }
 
@@ -379,26 +432,25 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
       });
     }
 
-    setAssigningCategoryId(null);
-    setAssignInputValue('');
+    setEditingCategoryId(null);
+    setEditingValue('');
   };
 
-  const handleAssignClose = () => {
-    setAssigningCategoryId(null);
-    setAssignInputValue('');
+  const handleEditCancel = () => {
+    setEditingCategoryId(null);
+    setEditingValue('');
   };
 
   const renderCategoryItem = (categoryId: string, available: number, assigned: number, spent: number, showLongPress: boolean = false) => {
     const info = getCategoryInfo(categoryId);
-    const isAssigning = assigningCategoryId === categoryId;
-    const displayAssigned = isAssigning ? (parseFloat(assignInputValue) || 0) : assigned;
-    const displayAvailable = displayAssigned - spent;
+    const isEditing = editingCategoryId === categoryId;
+    const displayAvailable = assigned - spent;
 
     return (
-      <View key={categoryId} style={[styles.categoryRow, isAssigning && styles.categoryRowAssigning]}>
+      <View key={categoryId} style={[styles.categoryRow, isEditing && styles.categoryRowAssigning]}>
         <TouchableOpacity 
           style={styles.categoryInfo}
-          onPress={() => handleAssignPress(categoryId, assigned)}
+          onPress={() => !isEditing && handleEditStart(categoryId, assigned)}
           onLongPress={() => showLongPress && handleLongPressCategory(categoryId)}
           delayLongPress={500}
         >
@@ -411,14 +463,41 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
           </View>
           <View style={styles.categoryText}>
             <Text variant="body">{info?.name || categoryId}</Text>
-            <Text variant="caption" color={theme.colors.textMuted}>
-              Asignado: {formatCurrency(displayAssigned)}
-            </Text>
+            {isEditing ? (
+              <View style={styles.inlineEditContainer}>
+                <Text variant="caption" color={theme.colors.textMuted}>Asignado:</Text>
+                <TextInput
+                  style={styles.inlineInput}
+                  value={editingValue}
+                  onChangeText={setEditingValue}
+                  keyboardType="numeric"
+                  autoFocus
+                  selectTextOnFocus
+                  placeholder="0"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            ) : (
+              <Text variant="caption" color={theme.colors.textMuted}>
+                Asignado: {formatCurrency(assigned)}
+              </Text>
+            )}
           </View>
         </TouchableOpacity>
-        {isAssigning ? (
-          <View style={[styles.assignBadge, { backgroundColor: '#374151' }]}>
-            <Text variant="body" color="#FFFFFF">{formatCurrency(displayAvailable)}</Text>
+        {isEditing ? (
+          <View style={styles.inlineEditActions}>
+            <TouchableOpacity 
+              style={styles.inlineCancelBtn}
+              onPress={handleEditCancel}
+            >
+              <Ionicons name="close" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.inlineConfirmBtn}
+              onPress={() => handleEditConfirm(categoryId)}
+            >
+              <Ionicons name="checkmark" size={20} color="#10B981" />
+            </TouchableOpacity>
           </View>
         ) : (
           renderAvailableBadge(available)
@@ -426,6 +505,312 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
       </View>
     );
   };
+
+  const renderCreatePlanModal = () => (
+    <Modal
+      visible={showPlanModal}
+      animationType="slide"
+      transparent
+      onRequestClose={() => {
+        setShowPlanModal(false);
+        setCreatePlanStep(1);
+        setPendingPlan(null);
+        setTempMonthlyIncome('');
+        setTempSavingsPercentage('20');
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={styles.modalHeader}>
+            <Text variant="h3">
+              {createPlanStep === 1 && 'Nuevo Plan'}
+              {createPlanStep === 2 && 'Ingreso Mensual'}
+              {createPlanStep === 3 && 'Ahorro Mensual'}
+              {createPlanStep === 4 && 'Resumen'}
+            </Text>
+            <TouchableOpacity onPress={() => {
+              setShowPlanModal(false);
+              setCreatePlanStep(1);
+              setPendingPlan(null);
+              setTempMonthlyIncome('');
+              setTempSavingsPercentage('20');
+            }}>
+              <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            {createPlanStep === 1 && (
+              <>
+                <Input
+                  label="Nombre del Plan"
+                  placeholder="Ej: Plan Mensual, Presupuesto 2024"
+                  value={newPlanName}
+                  onChangeText={setNewPlanName}
+                />
+                
+                <View style={styles.currencyInfo}>
+                  <Text variant="caption" color={theme.colors.textMuted}>
+                    Moneda: RD$ (Peso Dominicano)
+                  </Text>
+                  <Text variant="caption" color={theme.colors.textMuted}>
+                    Formato: RD$ antes del monto
+                  </Text>
+                  <Text variant="caption" color={theme.colors.textMuted}>
+                    Fecha: DD/MM/YYYY
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {createPlanStep === 2 && (
+              <>
+                <Text variant="body" color={theme.colors.textMuted} style={{ marginBottom: 16 }}>
+                  ¿Cuál es tu ingreso mensual total? Incluye todas las fuentes de ingreso.
+                </Text>
+                <View style={styles.incomeInputContainer}>
+                  <Text variant="h2" color={theme.colors.textMuted}>RD$</Text>
+                  <TextInput
+                    style={styles.incomeInput}
+                    placeholder="0"
+                    placeholderTextColor={theme.colors.textMuted}
+                    keyboardType="numeric"
+                    value={tempMonthlyIncome}
+                    onChangeText={setTempMonthlyIncome}
+                  />
+                </View>
+                <Text variant="caption" color={theme.colors.textMuted} style={{ marginTop: 8, textAlign: 'center' }}>
+                  Ingresa solo números, sin puntos ni comas
+                </Text>
+              </>
+            )}
+
+            {createPlanStep === 3 && (
+              <>
+                <Text variant="body" color={theme.colors.textMuted} style={{ marginBottom: 16 }}>
+                  ¿Qué porcentaje de tu ingreso deseas ahorrar?
+                </Text>
+                <View style={styles.savingsInputContainer}>
+                  <TextInput
+                    style={styles.savingsInput}
+                    placeholder="20"
+                    placeholderTextColor={theme.colors.textMuted}
+                    keyboardType="numeric"
+                    value={tempSavingsPercentage}
+                    onChangeText={setTempSavingsPercentage}
+                  />
+                  <Text variant="h2" color={theme.colors.textMuted}>%</Text>
+                </View>
+                <View style={styles.savingsSliderContainer}>
+                  <View style={styles.savingsSlider}>
+                    {[0, 10, 20, 30, 40, 50].map(value => (
+                      <TouchableOpacity
+                        key={value}
+                        style={[
+                          styles.savingsSliderOption,
+                          parseInt(tempSavingsPercentage) === value && styles.savingsSliderOptionActive
+                        ]}
+                        onPress={() => setTempSavingsPercentage(value.toString())}
+                      >
+                        <Text 
+                          variant="caption" 
+                          color={parseInt(tempSavingsPercentage) === value ? '#FFF' : theme.colors.textMuted}
+                        >
+                          {value}%
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                <View style={[styles.savingsPreview, { backgroundColor: theme.colors.primary + '10' }]}>
+                  <Text variant="body" color={theme.colors.textSecondary}>
+                    Ahorro mensual estimado:
+                  </Text>
+                  <Text variant="h3" color={theme.colors.primary}>
+                    RD$ {((parseFloat(tempMonthlyIncome) || 0) * (parseFloat(tempSavingsPercentage) || 0) / 100).toLocaleString('es-DO')}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            {createPlanStep === 4 && pendingPlan && (
+              <>
+                <View style={[styles.summaryCard, { backgroundColor: '#F0FDF4', borderColor: '#22C55E' }]}>
+                  <Text variant="h3" color={theme.colors.success} style={{ marginBottom: 16 }}>
+                    Resumen de tu Presupuesto
+                  </Text>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text variant="body" color={theme.colors.textSecondary}>
+                      Ingreso mensual:
+                    </Text>
+                    <Text variant="h3" color={theme.colors.textPrimary}>
+                      RD$ {pendingPlan.monthlyIncome.toLocaleString('es-DO')}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text variant="body" color={theme.colors.textSecondary}>
+                      Ahorro ({pendingPlan.savingsPercentage}%):
+                    </Text>
+                    <Text variant="h3" color={theme.colors.success}>
+                      RD$ {(pendingPlan.monthlyIncome * pendingPlan.savingsPercentage / 100).toLocaleString('es-DO')}
+                    </Text>
+                  </View>
+                  
+                  <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#E5E7EB', marginTop: 12, paddingTop: 12 }]}>
+                    <Text variant="body" color={theme.colors.textSecondary}>
+                      Disponible para gastos:
+                    </Text>
+                    <Text variant="h2" color={theme.colors.primary}>
+                      RD$ {(pendingPlan.monthlyIncome - (pendingPlan.monthlyIncome * pendingPlan.savingsPercentage / 100)).toLocaleString('es-DO')}
+                    </Text>
+                  </View>
+                </View>
+                
+                <Text variant="body" color={theme.colors.textMuted} style={{ marginTop: 20, textAlign: 'center' }}>
+                  Presiona "Elegir Categorías" para seleccionar las categorías de gastos de tu presupuesto.
+                </Text>
+              </>
+            )}
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            {createPlanStep === 1 && (
+              <Button
+                title="Continuar"
+                onPress={handleCreatePlan}
+                variant="primary"
+                fullWidth
+                disabled={!newPlanName.trim()}
+              />
+            )}
+            {createPlanStep === 2 && (
+              <Button
+                title="Siguiente"
+                onPress={handleSaveIncomeStep}
+                variant="primary"
+                fullWidth
+                disabled={!tempMonthlyIncome || parseFloat(tempMonthlyIncome) <= 0}
+              />
+            )}
+            {createPlanStep === 3 && (
+              <Button
+                title="Ver Resumen"
+                onPress={handleSaveSavingsStep}
+                variant="primary"
+                fullWidth
+              />
+            )}
+            {createPlanStep === 4 && (
+              <Button
+                title="Elegir Categorías"
+                onPress={handleContinueToCategories}
+                variant="primary"
+                fullWidth
+              />
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderCategoryModal = () => (
+    <Modal
+      visible={showCategoryModal}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setShowCategoryModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.categoryModalContainer}>
+          <View style={styles.categoryModalHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowCategoryModal(false);
+              setCategorySearchQuery('');
+              setIsAddingToExistingPlan(false);
+            }}>
+              <Text variant="body" style={styles.cancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <Text variant="h3" style={styles.categoryModalTitle}>
+              {isAddingToExistingPlan ? 'Agregar Categorías' : 'Selecciona Categorías'}
+            </Text>
+            <TouchableOpacity onPress={handleConfirmCategories}>
+              <Text variant="body" style={styles.doneText}>Listo</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.categorySearchContainer}>
+            <Ionicons name="search" size={18} color="#9CA3AF" />
+            <TextInput
+              style={styles.categorySearchInput}
+              placeholder="Buscar"
+              placeholderTextColor="#9CA3AF"
+              value={categorySearchQuery}
+              onChangeText={setCategorySearchQuery}
+            />
+          </View>
+
+          <Text variant="body" style={styles.categorySubtitle}>
+            {isAddingToExistingPlan 
+              ? 'Selecciona las categorías que quieres agregar a tu presupuesto'
+              : 'Elige las categorías que quieres incluir en tu plan'}
+          </Text>
+
+          <ScrollView style={styles.categoryModalScroll}>
+            <Text variant="h3" style={styles.categoryGroupTitle}>Gastos</Text>
+            {expenseCategoriesList
+              .filter(cat => cat.name.toLowerCase().includes(categorySearchQuery.toLowerCase()))
+              .map(cat => {
+                const isAlreadyInBudget = !isAddingToExistingPlan 
+                  ? false 
+                  : categoryBudgets.some(cb => cb.categoryId === cat.id);
+                return (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[styles.categorySelectItem, isAlreadyInBudget && styles.categoryDisabled]}
+                  onPress={() => !isAlreadyInBudget && toggleCategory(cat.id)}
+                  disabled={isAlreadyInBudget}
+                >
+                  <View style={[styles.categorySelectIcon, { backgroundColor: cat.color }]}>
+                    <Ionicons name={(cat.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={16} color="#FFF" />
+                  </View>
+                  <Text 
+                    variant="body" 
+                    style={styles.categoryItemName}
+                    color={isAlreadyInBudget ? '#9CA3AF' : undefined}
+                  >
+                    {cat.name}
+                  </Text>
+                  {isAlreadyInBudget ? (
+                    <Text variant="caption" style={{ color: '#9CA3AF' }}>Ya agregada</Text>
+                  ) : (
+                    <View style={styles.categoryCheckbox}>
+                      {selectedCategories.includes(cat.id) ? (
+                        <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+                      ) : (
+                        <Ionicons name="ellipse-outline" size={24} color="#6B7280" />
+                      )}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );})}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  if (!plan) {
+    return (
+      <>
+        {renderSinPlanContent()}
+        {renderCreatePlanModal()}
+        {renderCategoryModal()}
+      </>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -497,7 +882,7 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
           <View style={styles.bannerContent}>
             <Ionicons name="wallet" size={20} color="#FFFFFF" />
             <Text variant="body" color="#FFFFFF" style={{ marginLeft: 8, flex: 1 }}>
-              {formatCurrency(readyToAssign)} Listo para asignar
+              {formatCurrency(calculateReadyToAssign)} Listo para asignar
             </Text>
           </View>
           <View style={styles.coverButton}>
@@ -614,15 +999,13 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
                     ? Math.max(0, Math.min(100, ((assigned - spent) / assigned) * 100))
                     : 0;
                   
-                  const isAssigning = assigningCategoryId === cb.categoryId;
-                  const displayAssigned = isAssigning ? (parseFloat(assignInputValue) || 0) : assigned;
-                  const displayAvailable = displayAssigned - spent;
+                  const isEditing = editingCategoryId === cb.categoryId;
 
                   return (
                     <TouchableOpacity 
                       key={cb.id} 
-                      style={[styles.pinnedRow, isAssigning && styles.pinnedRowAssigning]}
-                      onPress={() => handleAssignPress(cb.categoryId, assigned)}
+                      style={[styles.pinnedRow, isEditing && styles.pinnedRowEditing]}
+                      onPress={() => !isEditing && handleEditStart(cb.categoryId, assigned)}
                       onLongPress={() => handleLongPressCategory(cb.categoryId)}
                       delayLongPress={500}
                     >
@@ -631,9 +1014,36 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
                           <Ionicons name={(info?.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={18} color="#FFF" />
                         </View>
                         <Text variant="body" style={styles.pinnedName}>{info?.name || cb.categoryId}</Text>
-                        <View style={[styles.pinnedBadge, { backgroundColor: getBadgeColor() }]}>
-                          <Text variant="body" color="#FFFFFF">{formatCurrency(available)}</Text>
-                        </View>
+                        {isEditing ? (
+                          <View style={styles.pinnedInlineEdit}>
+                            <TextInput
+                              style={styles.pinnedInlineInput}
+                              value={editingValue}
+                              onChangeText={setEditingValue}
+                              keyboardType="numeric"
+                              autoFocus
+                              selectTextOnFocus
+                              placeholder="0"
+                              placeholderTextColor="#9CA3AF"
+                            />
+                            <TouchableOpacity 
+                              style={styles.inlineCancelBtn}
+                              onPress={handleEditCancel}
+                            >
+                              <Ionicons name="close" size={18} color="#9CA3AF" />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={styles.inlineConfirmBtn}
+                              onPress={() => handleEditConfirm(cb.categoryId)}
+                            >
+                              <Ionicons name="checkmark" size={18} color="#10B981" />
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View style={[styles.pinnedBadge, { backgroundColor: getBadgeColor() }]}>
+                            <Text variant="body" color="#FFFFFF">{formatCurrency(available)}</Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.pinnedProgressContainer}>
                         <View style={styles.pinnedProgressBar}>
@@ -691,7 +1101,7 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
           );
         }))}
 
-        {readyToAssign <= 0 && overspentCategories.length === 0 && categoryBudgets.length > 0 && (
+        {calculateReadyToAssign <= 0 && overspentCategories.length === 0 && categoryBudgets.length > 0 && (
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle" size={48} color={theme.colors.success} />
             <Text variant="body" color={theme.colors.textSecondary} style={{ marginTop: 12, textAlign: 'center' }}>
@@ -699,6 +1109,16 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
             </Text>
           </View>
         )}
+
+        <TouchableOpacity
+          style={[styles.addCategoryButton, { backgroundColor: theme.colors.primary + '15', borderColor: theme.colors.primary }]}
+          onPress={handleOpenAddCategoryModal}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={theme.colors.primary} />
+          <Text variant="body" color={theme.colors.primary} style={{ marginLeft: 8, fontWeight: '600' }}>
+            Agregar Categoría
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <CoverOverspendingModal
@@ -728,88 +1148,6 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         options={contextMenuOptions}
       />
 
-      {assigningCategoryId && (
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.numpadOverlay}
-        >
-          <View style={styles.numpadHeader}>
-            <TouchableOpacity onPress={handleAssignClose}>
-              <Text variant="body" style={styles.numpadCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text variant="h3" style={styles.numpadTitle}>
-              {getCategoryInfo(assigningCategoryId)?.name || 'Category'}
-            </Text>
-            <TouchableOpacity onPress={handleAssignDone}>
-              <Text variant="body" style={styles.numpadDoneText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.numpadContent}>
-            <View style={styles.assignPreview}>
-              <Text variant="caption" color="#9CA3AF">Assigned</Text>
-              <Text variant="h2" style={styles.previewAmount}>
-                {formatCurrency(parseFloat(assignInputValue) || 0)}
-              </Text>
-            </View>
-          </View>
-          <Numpad
-            value={assignInputValue}
-            onChange={setAssignInputValue}
-            onDone={handleAssignDone}
-            onClose={handleAssignClose}
-          />
-        </KeyboardAvoidingView>
-      )}
-
-      <Modal
-        visible={showPlanModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowPlanModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
-            <View style={styles.modalHeader}>
-              <Text variant="h3">Nuevo Plan</Text>
-              <TouchableOpacity onPress={() => setShowPlanModal(false)}>
-                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.modalContent}>
-              <Input
-                label="Nombre del Plan"
-                placeholder="Ej: Plan Mensual, Presupuesto 2024"
-                value={newPlanName}
-                onChangeText={setNewPlanName}
-              />
-              
-              <View style={styles.currencyInfo}>
-                <Text variant="caption" color={theme.colors.textMuted}>
-                  Moneda: RD$ (Peso Dominicano)
-                </Text>
-                <Text variant="caption" color={theme.colors.textMuted}>
-                  Formato: RD$ antes del monto
-                </Text>
-                <Text variant="caption" color={theme.colors.textMuted}>
-                  Fecha: DD/MM/YYYY
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.modalFooter}>
-              <Button
-                title="Crear Plan"
-                onPress={handleCreatePlan}
-                variant="primary"
-                fullWidth
-                disabled={!newPlanName.trim()}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       <Modal
         visible={showCategoryModal}
         animationType="slide"
@@ -823,10 +1161,13 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
               <TouchableOpacity onPress={() => {
                 setShowCategoryModal(false);
                 setCategorySearchQuery('');
+                setIsAddingToExistingPlan(false);
               }}>
                 <Text variant="body" style={styles.cancelText}>Cancelar</Text>
               </TouchableOpacity>
-              <Text variant="h3" style={styles.categoryModalTitle}>Selecciona Categorías</Text>
+              <Text variant="h3" style={styles.categoryModalTitle}>
+                {isAddingToExistingPlan ? 'Agregar Categorías' : 'Selecciona Categorías'}
+              </Text>
               <TouchableOpacity onPress={handleConfirmCategories}>
                 <Text variant="body" style={styles.doneText}>Listo</Text>
               </TouchableOpacity>
@@ -846,37 +1187,53 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
 
             {/* Subtitle */}
             <Text variant="body" style={styles.categorySubtitle}>
-              Elige las categorías que quieres incluir en tu plan
+              {isAddingToExistingPlan 
+                ? 'Selecciona las categorías que quieres agregar a tu presupuesto'
+                : 'Elige las categorías que quieres incluir en tu plan'}
             </Text>
 
             <ScrollView style={styles.categoryModalScroll}>
               <Text variant="h3" style={styles.categoryGroupTitle}>Gastos</Text>
-              {EXPENSE_CATEGORIES
+              {expenseCategoriesList
                 .filter(cat => cat.name.toLowerCase().includes(categorySearchQuery.toLowerCase()))
-                .map(cat => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={styles.categorySelectItem}
-                  onPress={() => toggleCategory(cat.id)}
-                >
-                  <Ionicons name="pin" size={16} color="#10B981" style={styles.categoryPinIcon} />
-                  <View style={[styles.categorySelectIcon, { backgroundColor: cat.color }]}>
-                    <Ionicons name={(cat.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={16} color="#FFF" />
-                  </View>
-                  <Text variant="body" style={styles.categoryItemName}>{cat.name}</Text>
-                  <View style={styles.categoryCheckbox}>
-                    {selectedCategories.includes(cat.id) ? (
-                      <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+                .map(cat => {
+                  const isAlreadyInBudget = !isAddingToExistingPlan 
+                    ? false 
+                    : categoryBudgets.some(cb => cb.categoryId === cat.id);
+                  return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categorySelectItem, isAlreadyInBudget && styles.categoryDisabled]}
+                    onPress={() => !isAlreadyInBudget && toggleCategory(cat.id)}
+                    disabled={isAlreadyInBudget}
+                  >
+                    <View style={[styles.categorySelectIcon, { backgroundColor: cat.color }]}>
+                      <Ionicons name={(cat.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={16} color="#FFF" />
+                    </View>
+                    <Text 
+                      variant="body" 
+                      style={styles.categoryItemName}
+                      color={isAlreadyInBudget ? '#9CA3AF' : undefined}
+                    >
+                      {cat.name}
+                    </Text>
+                    {isAlreadyInBudget ? (
+                      <Text variant="caption" style={{ color: '#9CA3AF' }}>Ya agregada</Text>
                     ) : (
-                      <Ionicons name="ellipse-outline" size={24} color="#6B7280" />
+                      <View style={styles.categoryCheckbox}>
+                        {selectedCategories.includes(cat.id) ? (
+                          <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+                        ) : (
+                          <Ionicons name="ellipse-outline" size={24} color="#6B7280" />
+                        )}
+                      </View>
                     )}
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );})}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </View>
+    </View>
+  </Modal>
 
       <Modal
         visible={showMenuModal}
@@ -903,6 +1260,17 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
               >
                 <Ionicons name="folder-open-outline" size={24} color={theme.colors.primary} />
                 <Text variant="body" style={{ marginLeft: 12 }}>Abrir Plan</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.menuOption}
+                onPress={() => {
+                  setShowMenuModal(false);
+                  handleOpenPlanSettings();
+                }}
+              >
+                <Ionicons name="settings-outline" size={24} color={theme.colors.primary} />
+                <Text variant="body" style={{ marginLeft: 12 }}>Configurar Plan</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -960,11 +1328,111 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         </View>
       </Modal>
 
+      <Modal
+        visible={showPlanSettingsModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowPlanSettingsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+            <View style={styles.modalHeader}>
+              <Text variant="h3">Configurar Plan</Text>
+              <TouchableOpacity onPress={() => setShowPlanSettingsModal(false)}>
+                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalContent}>
+              <Text variant="body" color={theme.colors.textSecondary} style={{ marginBottom: 8 }}>
+                Ingreso mensual
+              </Text>
+              <View style={styles.incomeInputContainer}>
+                <Text variant="h2" color={theme.colors.textMuted}>RD$</Text>
+                <TextInput
+                  style={styles.incomeInput}
+                  placeholder="0"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={tempMonthlyIncome}
+                  onChangeText={setTempMonthlyIncome}
+                />
+              </View>
+              
+              <Text variant="body" color={theme.colors.textSecondary} style={{ marginBottom: 8, marginTop: 16 }}>
+                Porcentaje de ahorro
+              </Text>
+              <View style={styles.savingsInputContainer}>
+                <TextInput
+                  style={styles.savingsInput}
+                  placeholder="20"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  value={tempSavingsPercentage}
+                  onChangeText={setTempSavingsPercentage}
+                />
+                <Text variant="h2" color={theme.colors.textMuted}>%</Text>
+              </View>
+              
+              <View style={styles.savingsSliderContainer}>
+                <View style={styles.savingsSlider}>
+                  {[0, 10, 20, 30, 40, 50].map(value => (
+                    <TouchableOpacity
+                      key={value}
+                      style={[
+                        styles.savingsSliderOption,
+                        parseInt(tempSavingsPercentage) === value && styles.savingsSliderOptionActive
+                      ]}
+                      onPress={() => setTempSavingsPercentage(value.toString())}
+                    >
+                      <Text 
+                        variant="caption" 
+                        color={parseInt(tempSavingsPercentage) === value ? '#FFF' : theme.colors.textMuted}
+                      >
+                        {value}%
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {tempMonthlyIncome && parseFloat(tempMonthlyIncome) > 0 && (
+                <View style={[styles.summaryCard, { backgroundColor: '#F0FDF4', borderColor: '#22C55E', marginTop: 20 }]}>
+                  <Text variant="body" color={theme.colors.textSecondary}>
+                    Ahorro mensual: 
+                    <Text variant="body" color={theme.colors.success} style={{ fontWeight: '700' }}>
+                      {' '}RD$ {((parseFloat(tempMonthlyIncome) || 0) * (parseFloat(tempSavingsPercentage) || 0) / 100).toLocaleString('es-DO')}
+                    </Text>
+                  </Text>
+                  <Text variant="body" color={theme.colors.textSecondary} style={{ marginTop: 8 }}>
+                    Disponible para gastos: 
+                    <Text variant="body" color={theme.colors.primary} style={{ fontWeight: '700' }}>
+                      {' '}RD$ {((parseFloat(tempMonthlyIncome) || 0) - ((parseFloat(tempMonthlyIncome) || 0) * (parseFloat(tempSavingsPercentage) || 0) / 100)).toLocaleString('es-DO')}
+                    </Text>
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <Button
+                title="Guardar Cambios"
+                onPress={handleSavePlanSettings}
+                variant="primary"
+                fullWidth
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <PinnedCategoriesModal 
         key={showPinnedModal ? 'open' : 'closed'}
         visible={showPinnedModal} 
         onClose={() => setShowPinnedModal(false)} 
       />
+
+      {renderCreatePlanModal()}
     </View>
   );
 };
@@ -1071,6 +1539,19 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     paddingHorizontal: 20,
   },
+  addCategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1112,6 +1593,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+  },
+  categoryDisabled: {
+    opacity: 0.5,
   },
   categorySelectIcon: {
     width: 32,
@@ -1212,6 +1696,9 @@ const styles = StyleSheet.create({
   pinnedRowAssigning: {
     backgroundColor: '#374151',
   },
+  pinnedRowEditing: {
+    backgroundColor: '#334155',
+  },
   pinnedRowContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1235,6 +1722,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+  },
+  pinnedInlineEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pinnedInlineInput: {
+    marginHorizontal: 6,
+    fontSize: 13,
+    color: '#FFFFFF',
+    backgroundColor: '#475569',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    minWidth: 60,
+    textAlign: 'right',
   },
   pinnedProgressContainer: {
     paddingHorizontal: 12,
@@ -1326,57 +1828,107 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   categoryRowAssigning: {
-    backgroundColor: '#374151',
+    backgroundColor: '#F1F5F9',
   },
   assignBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
-  numpadOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0F172A',
-    justifyContent: 'flex-end',
-  },
-  numpadHeader: {
+  inlineEditContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    marginTop: 2,
   },
-  numpadCancelText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  inlineInput: {
+    marginLeft: 4,
+    fontSize: 13,
+    color: '#1E293B',
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    minWidth: 60,
+    textAlign: 'right',
   },
-  numpadTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  numpadDoneText: {
-    color: '#3B82F6',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  numpadContent: {
-    padding: 20,
+  inlineEditActions: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  assignPreview: {
-    alignItems: 'center',
+  inlineCancelBtn: {
+    padding: 8,
   },
-  previewAmount: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '600',
+  inlineConfirmBtn: {
+    padding: 8,
+    marginLeft: 4,
   },
   deleteAction: {
     backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'center',
     width: 80,
+  },
+  incomeInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  incomeInput: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginLeft: 16,
+    minWidth: 150,
+    textAlign: 'right',
+  },
+  savingsInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  savingsInput: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginRight: 16,
+    minWidth: 80,
+    textAlign: 'right',
+  },
+  savingsSliderContainer: {
+    marginVertical: 20,
+  },
+  savingsSlider: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  savingsSliderOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  savingsSliderOptionActive: {
+    backgroundColor: '#10B981',
+  },
+  savingsPreview: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  summaryCard: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 8,
   },
 });
 

@@ -50,7 +50,7 @@ interface ConfigurationScreenProps {
 
 const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation }) => {
   const theme = useTheme();
-  const { settings, updateSettings, setTheme } = useSettings();
+  const { settings, updateSettings, setTheme, resetToDefaults } = useSettings();
   const { lastSync, syncNow } = useSync();
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
@@ -203,7 +203,17 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
           <Text variant="body" color={theme.colors.primary}>→</Text>
         </TouchableOpacity>
         <Divider spacing={12} />
-        <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Restablecer', '¿Estás seguro? Esto eliminará todos tus datos.', [{ text: 'Cancelar' }, { text: 'Restablecer', style: 'destructive', onPress: () => {} }])}>
+        <TouchableOpacity style={styles.row} onPress={() => Alert.alert(
+          'Restablecer datos',
+          '¿Estás seguro de que deseas eliminar todos tus datos? Esta acción no se puede deshacer.\n\nSe eliminarán:\n• Transacciones\n• Cuentas\n• Metas\n• Deudas\n• Planes de presupuesto\n• Categorías personalizadas',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Restablecer', style: 'destructive', onPress: () => {
+              resetToDefaults();
+              Alert.alert('Datos restablecidos', 'Todos tus datos han sido eliminados.');
+            }}
+          ]
+        )}>
           <Text variant="body" color={theme.colors.error}>Restablecer datos</Text>
           <Text variant="body" color={theme.colors.error}>→</Text>
         </TouchableOpacity>
