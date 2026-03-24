@@ -114,6 +114,7 @@ export interface UserSettings {
   decimalSeparator: string;
   voiceAutoSave: boolean;
   voiceTimeout: number;
+  overspendingModalStyle: 'modal' | 'screen';
 }
 
 export interface Account {

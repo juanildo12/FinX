@@ -134,6 +134,7 @@ const initialSettings: UserSettings = {
   decimalSeparator: ',',
   voiceAutoSave: false,
   voiceTimeout: 0,
+  overspendingModalStyle: 'screen',
 };
 
 export const useAppStore = create<AppState>()(

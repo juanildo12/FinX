@@ -14,10 +14,11 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Card, Badge, Button, Input } from '../../components/atoms';
-import { useTheme, useCurrency, useBudgeting, useTransactions, useAccounts, useCategories } from '../../hooks';
+import { useTheme, useCurrency, useBudgeting, useTransactions, useAccounts, useCategories, useSettings } from '../../hooks';
+import { useAppStore } from '../../store';
 import { ALL_CATEGORIES, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../../constants';
-import { CoverOverspendingModal } from '../../components/organisms/CoverOverspendingModal';
 import { AssignModal } from '../../components/organisms/AssignModal';
+import { CoverOverspendingModal } from '../../components/organisms/CoverOverspendingModal';
 import { PinnedCategoriesModal } from '../../components/organisms/PinnedCategoriesModal';
 import { EditTargetModal } from '../../components/organisms/EditTargetModal';
 import { CategoryContextMenu } from '../../components/molecules/CategoryContextMenu';
@@ -120,6 +121,7 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
   const { categories: allCategories } = useCategories();
   const { transactions } = useTransactions();
   const { totalBalance, accounts, updateAccountBalance } = useAccounts();
+  const { settings } = useSettings();
 
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -858,7 +860,13 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         {overspentCategories.length > 0 && (
           <TouchableOpacity 
             style={[styles.overspendBanner, { backgroundColor: theme.colors.error }]}
-            onPress={() => setShowCoverModal(true)}
+            onPress={() => {
+              if (settings.overspendingModalStyle === 'modal') {
+                setShowCoverModal(true);
+              } else {
+                navigation.navigate('CoverOverspending');
+              }
+            }}
           >
             <View style={styles.bannerContent}>
               <Ionicons name="warning" size={20} color="#FFFFFF" />
@@ -1121,11 +1129,6 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       </ScrollView>
 
-      <CoverOverspendingModal
-        visible={showCoverModal}
-        onClose={() => setShowCoverModal(false)}
-      />
-      
       <AssignModal
         visible={showAssignModal}
         onClose={() => setShowAssignModal(false)}
@@ -1433,6 +1436,16 @@ const PlanScreen: React.FC<PlanScreenProps> = ({ navigation }) => {
       />
 
       {renderCreatePlanModal()}
+
+      <CoverOverspendingModal
+        visible={showCoverModal}
+        onClose={() => setShowCoverModal(false)}
+        overspentCategories={overspentCategories}
+        categoryBudgets={categoryBudgets}
+        getCategoryInfo={getCategoryInfo}
+        coverOverspending={useAppStore.getState().coverOverspending}
+        calculateReadyToAssign={calculateReadyToAssign}
+      />
     </View>
   );
 };

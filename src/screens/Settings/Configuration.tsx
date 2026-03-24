@@ -111,6 +111,26 @@ const ConfigurationScreen: React.FC<ConfigurationScreenProps> = ({ navigation })
           </View>
           <Switch value={theme.mode === 'dark'} onValueChange={toggleTheme} trackColor={{ true: theme.colors.primary }} />
         </View>
+        <Divider spacing={12} />
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <Text variant="body">Cubrir Overspending</Text>
+            <Text variant="caption" color={theme.colors.textMuted}>
+              {settings.overspendingModalStyle === 'modal' ? 'Modal centrado' : 'Pantalla completa'}
+            </Text>
+          </View>
+          <TouchableOpacity 
+            onPress={() => updateSettings({ 
+              overspendingModalStyle: settings.overspendingModalStyle === 'modal' ? 'screen' : 'modal' 
+            })}
+          >
+            <View style={[styles.styleBadge, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Text variant="caption" color={theme.colors.primary}>
+                {settings.overspendingModalStyle === 'modal' ? 'Modal' : 'Pantalla'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </Card>
 
       <Card style={styles.section}>
@@ -353,6 +373,7 @@ const styles = StyleSheet.create({
   searchInput: { height: 48, borderRadius: 12, paddingHorizontal: 16, marginBottom: 12, borderWidth: 1 },
   currencyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8, borderRadius: 8 },
   closeButton: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 16 },
+  styleBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
 });
 
 export default ConfigurationScreen;

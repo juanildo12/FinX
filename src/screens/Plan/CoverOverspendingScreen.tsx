@@ -1,48 +1,41 @@
 import React, { useState, useMemo } from 'react';
 import {
   View,
-  Modal,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   TextInput,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, useCurrency, useBudgeting } from '../../hooks';
 import { CategoryBudget } from '../../types';
-import { Button } from '../atoms/Button';
-import { Text } from '../atoms/Text';
-import { SuccessAnimation } from '../molecules/SuccessAnimation';
+import { Button } from '../../components/atoms/Button';
+import { Text } from '../../components/atoms/Text';
+import { SuccessAnimation } from '../../components/molecules/SuccessAnimation';
 
-interface CoverOverspendingModalProps {
-  visible: boolean;
-  onClose: () => void;
-  overspentCategories: CategoryBudget[];
-  categoryBudgets: CategoryBudget[];
-  getCategoryInfo: (categoryId: string) => { name: string; icon: string; color: string } | undefined;
-  coverOverspending: (overspentCategoryId: string, sourceCategoryId: string, amount: number) => void;
-  calculateReadyToAssign: number;
-}
+type SettingsStackParamList = {
+  CoverOverspending: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<SettingsStackParamList, 'CoverOverspending'>;
 
 type Step = 'select' | 'source' | 'amount';
 
-export const CoverOverspendingModal: React.FC<CoverOverspendingModalProps> = ({
-  visible,
-  onClose,
-  overspentCategories: overspentCategoriesProp,
-  categoryBudgets: categoryBudgetsProp,
-  getCategoryInfo: getCategoryInfoProp,
-  coverOverspending: coverOverspendingProp,
-  calculateReadyToAssign: calculateReadyToAssignProp,
-}) => {
+export const CoverOverspendingScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { formatCurrency } = useCurrency();
-  
-  const overspentCategories = overspentCategoriesProp;
-  const categoryBudgets = categoryBudgetsProp;
-  const getCategoryInfo = getCategoryInfoProp;
-  const coverOverspending = coverOverspendingProp;
-  const calculateReadyToAssign = calculateReadyToAssignProp;
+  const {
+    overspentCategories,
+    categoryBudgets,
+    getCategoryInfo,
+    coverOverspending,
+    calculateReadyToAssign,
+  } = useBudgeting();
 
   const [selectedOverspent, setSelectedOverspent] = useState<CategoryBudget | null>(null);
   const [selectedSource, setSelectedSource] = useState<CategoryBudget | null>(null);
@@ -112,18 +105,9 @@ export const CoverOverspendingModal: React.FC<CoverOverspendingModalProps> = ({
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
-        resetAndClose();
+        navigation.goBack();
       }, 2500);
     }
-  };
-
-  const resetAndClose = () => {
-    setSelectedOverspent(null);
-    setSelectedSource(null);
-    setSearchQuery('');
-    setTransferAmount(0);
-    setStep('select');
-    onClose();
   };
 
   const handleBack = () => {
@@ -134,6 +118,8 @@ export const CoverOverspendingModal: React.FC<CoverOverspendingModalProps> = ({
       setStep('source');
       setSelectedSource(null);
       setTransferAmount(0);
+    } else {
+      navigation.goBack();
     }
   };
 
@@ -155,63 +141,60 @@ export const CoverOverspendingModal: React.FC<CoverOverspendingModalProps> = ({
     return info?.color || theme.colors.textMuted;
   };
 
-  const getHeaderTitle = () => {
-    if (step === 'select') return 'Categorías Overspent';
-    if (step === 'source') return 'Seleccionar Fuente';
-    return 'Cubrir Overspending';
-  };
+  const renderHeader = () => {
+    let title = '';
+    if (step === 'select') title = 'Categorías Overspent';
+    else if (step === 'source') title = 'Seleccionar Fuente';
+    else if (step === 'amount') title = 'Cubrir Overspending';
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      {step !== 'select' && (
+    return (
+      <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
-      )}
-      <Text variant="h3" style={[styles.headerTitle, step === 'select' && styles.headerTitleCenter]}>
-        {getHeaderTitle()}
-      </Text>
-      <TouchableOpacity onPress={resetAndClose} style={styles.closeButton}>
-        <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-      </TouchableOpacity>
-    </View>
-  );
+        <Text variant="h3" style={styles.headerTitle}>{title}</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+    );
+  };
 
   const renderSelectStep = () => (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.content}>
       <Text variant="body" color={theme.colors.textSecondary} style={styles.subtitle}>
         Selecciona una categoría para cubrir
       </Text>
-      {overspentCategories.map((cb) => {
-        const info = getCategoryInfo(cb.categoryId);
-        return (
-          <TouchableOpacity
-            key={cb.id}
-            style={[styles.categoryItem, { borderColor: theme.colors.border }]}
-            onPress={() => handleSelectOverspent(cb)}
-          >
-            <View style={[styles.categoryIcon, { backgroundColor: info?.color || theme.colors.error }]}>
-              <Ionicons name={(info?.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={18} color="#FFF" />
-            </View>
-            <View style={styles.categoryInfo}>
-              <Text variant="body">{info?.name || cb.categoryId}</Text>
-              <Text variant="caption" color={theme.colors.textMuted}>
-                {cb.group}
-              </Text>
-            </View>
-            <View style={[styles.amountBadge, { backgroundColor: theme.colors.error + '20' }]}>
-              <Text variant="body" color={theme.colors.error}>
-                {formatCurrency(cb.available)}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {overspentCategories.map((cb) => {
+          const info = getCategoryInfo(cb.categoryId);
+          return (
+            <TouchableOpacity
+              key={cb.id}
+              style={[styles.categoryItem, { borderColor: theme.colors.border }]}
+              onPress={() => handleSelectOverspent(cb)}
+            >
+              <View style={[styles.categoryIcon, { backgroundColor: info?.color || theme.colors.error }]}>
+                <Ionicons name={(info?.icon as keyof typeof Ionicons.glyphMap) || 'help-circle'} size={18} color="#FFF" />
+              </View>
+              <View style={styles.categoryInfo}>
+                <Text variant="body">{info?.name || cb.categoryId}</Text>
+                <Text variant="caption" color={theme.colors.textMuted}>
+                  {cb.group}
+                </Text>
+              </View>
+              <View style={[styles.amountBadge, { backgroundColor: theme.colors.error + '20' }]}>
+                <Text variant="body" color={theme.colors.error}>
+                  {formatCurrency(cb.available)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 
   const renderSourceStep = () => (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.content}>
       <Text variant="body" color={theme.colors.textSecondary} style={styles.subtitle}>
         ¿De dónde quieres tomar el dinero?
       </Text>
@@ -225,27 +208,29 @@ export const CoverOverspendingModal: React.FC<CoverOverspendingModalProps> = ({
           onChangeText={setSearchQuery}
         />
       </View>
-      {filteredSources.map((cb) => (
-        <TouchableOpacity
-          key={cb.id}
-          style={[styles.categoryItem, { borderColor: theme.colors.border }]}
-          onPress={() => handleSelectSource(cb)}
-        >
-          <View style={[styles.categoryIcon, { backgroundColor: getCategoryColor(cb.categoryId) }]}>
-            <Ionicons name={(getCategoryIcon(cb.categoryId) as keyof typeof Ionicons.glyphMap)} size={18} color="#FFF" />
-          </View>
-          <View style={styles.categoryInfo}>
-            <Text variant="body">{getCategoryName(cb.categoryId)}</Text>
-            {cb.pinned && <Text variant="caption" color={theme.colors.primary}>Fijado</Text>}
-          </View>
-          <View style={[styles.amountBadge, { backgroundColor: theme.colors.success + '20' }]}>
-            <Text variant="body" color={theme.colors.success}>
-              {formatCurrency(cb.available)}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {filteredSources.map((cb) => (
+          <TouchableOpacity
+            key={cb.id}
+            style={[styles.categoryItem, { borderColor: theme.colors.border }]}
+            onPress={() => handleSelectSource(cb)}
+          >
+            <View style={[styles.categoryIcon, { backgroundColor: getCategoryColor(cb.categoryId) }]}>
+              <Ionicons name={(getCategoryIcon(cb.categoryId) as keyof typeof Ionicons.glyphMap)} size={18} color="#FFF" />
+            </View>
+            <View style={styles.categoryInfo}>
+              <Text variant="body">{getCategoryName(cb.categoryId)}</Text>
+              {cb.pinned && <Text variant="caption" color={theme.colors.primary}>Fijado</Text>}
+            </View>
+            <View style={[styles.amountBadge, { backgroundColor: theme.colors.success + '20' }]}>
+              <Text variant="body" color={theme.colors.success}>
+                {formatCurrency(cb.available)}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 
   const renderAmountStep = () => (
@@ -328,62 +313,47 @@ export const CoverOverspendingModal: React.FC<CoverOverspendingModalProps> = ({
   );
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
-      <View style={styles.overlay}>
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          {renderHeader()}
-          
-          {step === 'select' && renderSelectStep()}
-          {step === 'source' && renderSourceStep()}
-          {step === 'amount' && renderAmountStep()}
-        </View>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
+      {renderHeader()}
+      
+      {step === 'select' && renderSelectStep()}
+      {step === 'source' && renderSourceStep()}
+      {step === 'amount' && renderAmountStep()}
+
+      <View style={{ height: insets.bottom }} />
+      
       <SuccessAnimation
         visible={showSuccess}
         message="¡Cubierto!"
         onDismiss={() => setShowSuccess(false)}
       />
-    </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   container: {
-    borderRadius: 20,
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '85%',
-    overflow: 'hidden',
-    minHeight: 400,
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingTop: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   backButton: {
     padding: 4,
-    marginRight: 8,
+    paddingTop: 16,
   },
   headerTitle: {
     flex: 1,
-  },
-  headerTitleCenter: {
     textAlign: 'center',
-    marginRight: 32,
   },
-  closeButton: {
-    padding: 4,
-    marginLeft: 8,
+  headerSpacer: {
+    width: 32,
   },
   content: {
     flex: 1,
