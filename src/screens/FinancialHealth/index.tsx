@@ -167,34 +167,44 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
   };
   const overallStatus = getOverallStatus();
 
-  const getSteps = () => {
-    const steps: string[] = [];
+  const getRecommendations = () => {
+    // Si está LISTO - consejos para ejecutar bien
+    if (passCount === 4) {
+      return [
+        'Considera dar un enganche del 20-30% del valor',
+        'Mantén la cuota mensual menor al 15% de tu ingreso',
+        'Compara tasas de interés entre diferentes instituciones',
+        'Verifica que el pago no comprometa más del 30% de tu presupuesto',
+      ];
+    }
     
+    // Si NO está listo - pasos para mejorar
+    const recommendations: string[] = [];
     criteria.forEach(c => {
       if (c.status === 'fail' || c.status === 'partial') {
         if (c.name === 'Tasa de ahorro') {
-          steps.push('Aumenta tu tasa de ahorro al menos al 15% durante 6-12 meses');
+          recommendations.push('Aumenta tu tasa de ahorro al menos al 15% durante 6-12 meses');
         }
         if (c.name === 'Deuda/Ingreso') {
-          steps.push('Reduce tu nivel de deuda actual antes de asumir un nuevo crédito');
+          recommendations.push('Reduce tu nivel de deuda actual antes de asumir un nuevo crédito');
         }
         if (c.name === 'Fondo emergencia') {
-          steps.push('Construye un fondo de emergencia de al menos 6 meses de gastos');
+          recommendations.push('Construye un fondo de emergencia de al menos 6 meses de gastos');
         }
         if (c.name === 'Uso de crédito') {
-          steps.push('Reduce el uso de tus tarjetas de crédito');
+          recommendations.push('Reduce el uso de tus tarjetas de crédito');
         }
       }
     });
     
-    if (steps.length === 0) {
-      steps.push('Mantén tu situación financiera actual');
-      steps.push('Continúa con tu plan de ahorro');
+    if (recommendations.length === 0) {
+      recommendations.push('Mantén tu situación financiera actual');
+      recommendations.push('Continúa con tu plan de ahorro');
     }
     
-    return steps;
+    return recommendations;
   };
-  const steps = getSteps();
+  const recommendations = getRecommendations();
 
   const scoreColors: Record<string, string> = {
     excellent: '#22C55E',
@@ -544,13 +554,14 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
                 </Text>
               </Card>
 
-              <Text variant="h3" style={{ marginTop: 16, marginBottom: 8 }}>Pasos a seguir</Text>
-              {steps.map((step, index) => (
-                <View key={index} style={styles.stepItem}>
-                  <Text variant="body" style={{ fontWeight: '600', width: 24 }}>{index + 1}.</Text>
-                  <Text variant="body" style={{ flex: 1 }}>{step}</Text>
-                </View>
-              ))}
+              <Text variant="h3" style={{ marginTop: 16, marginBottom: 8 }}>Recomendaciones</Text>
+              <Card style={[styles.recommendationsCard, { backgroundColor: '#EFF6FF' }]}>
+                {recommendations.map((rec, index) => (
+                  <View key={index} style={styles.recommendationItem}>
+                    <Text variant="body" style={{ flex: 1 }}>• {rec}</Text>
+                  </View>
+                ))}
+              </Card>
 
               <View style={{ height: 40 }} />
             </ScrollView>
@@ -813,6 +824,15 @@ const styles = StyleSheet.create({
   stepItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  recommendationsCard: {
+    padding: 16,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
     marginBottom: 8,
   },
 });
