@@ -167,6 +167,34 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
   };
   const overallStatus = getOverallStatus();
 
+  const decisionRecommendations: Record<string, string[]> = {
+    vehicle: [
+      'Aumenta tu tasa de ahorro al menos al 15% durante 6-12 meses',
+      'Reduce tu nivel de deuda actual antes de asumir un nuevo crédito',
+      'Construye un fondo de emergencia de al menos 6 meses de gastos',
+      'Considera alternativas como transporte público o vehículos usados más económicos',
+    ],
+    home: [
+      'Trabaja en reducir tu deuda actual al menos 12-18 meses antes',
+      'Construye un fondo específico para enganche (20% del valor)',
+      'Asegura tener 6-12 meses de gastos en fondo de emergencia',
+      'Mejora tu historial crediticio pagando puntualmente todas tus deudas',
+      'Considera viviendas dentro del rango 3-4x tu ingreso anual bruto',
+    ],
+    trip: [
+      'Ahorra específicamente para el viaje durante 6-12 meses',
+      'Considera destinos más económicos o viajes cortos',
+      'Reduce gastos innecesarios durante 3-6 meses previos',
+      'No uses crédito para financiar vacaciones',
+    ],
+    experience: [
+      'Ahorra específicamente para esta experiencia',
+      'Prioriza obligaciones y metas financieras primero',
+      'Busca alternativas más económicas que brinden satisfacción similar',
+      'Evita el uso de crédito para gastos discrecionales',
+    ],
+  };
+
   const getRecommendations = () => {
     // Si está LISTO - consejos para ejecutar bien
     if (passCount === 4) {
@@ -178,31 +206,8 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
       ];
     }
     
-    // Si NO está listo - pasos para mejorar
-    const recommendations: string[] = [];
-    criteria.forEach(c => {
-      if (c.status === 'fail' || c.status === 'partial') {
-        if (c.name === 'Tasa de ahorro') {
-          recommendations.push('Aumenta tu tasa de ahorro al menos al 15% durante 6-12 meses');
-        }
-        if (c.name === 'Deuda/Ingreso') {
-          recommendations.push('Reduce tu nivel de deuda actual antes de asumir un nuevo crédito');
-        }
-        if (c.name === 'Fondo emergencia') {
-          recommendations.push('Construye un fondo de emergencia de al menos 6 meses de gastos');
-        }
-        if (c.name === 'Uso de crédito') {
-          recommendations.push('Reduce el uso de tus tarjetas de crédito');
-        }
-      }
-    });
-    
-    if (recommendations.length === 0) {
-      recommendations.push('Mantén tu situación financiera actual');
-      recommendations.push('Continúa con tu plan de ahorro');
-    }
-    
-    return recommendations;
+    // Usar recomendaciones específicas según el tipo de decisión
+    return decisionRecommendations[selectedDecision || 'vehicle'] || decisionRecommendations.vehicle;
   };
   const recommendations = getRecommendations();
 
