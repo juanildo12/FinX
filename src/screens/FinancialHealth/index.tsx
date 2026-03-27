@@ -4,7 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Card, Button, ProgressBar } from '../../components/atoms';
 import { useTheme, useTransactions, useDebts, useCreditCards, useGoals, useCurrency } from '../../hooks';
-import { calculateFinancialHealth, evaluateDecision, getHealthColor, getHealthLabel } from '../../utils/financialHealth';
+import { calculateFinancialHealth, evaluateDecision, getHealthColor, getHealthLabel, 
+  getDebtToIncomeColor, getDebtToIncomeLabel,
+  getSavingsRateColor, getSavingsRateLabel,
+  getBalanceRateColor, getBalanceRateLabel,
+  getCreditUtilizationColor, getCreditUtilizationLabel,
+  getEmergencyFundColor, getEmergencyFundLabel } from '../../utils/financialHealth';
 
 interface FinancialHealthScreenProps {
   navigation: any;
@@ -83,81 +88,156 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
         </Text>
       </Card>
 
-      <Text variant="h3" style={styles.sectionTitle}>Indicadores clave</Text>
+      <Text variant="h3" style={styles.sectionTitle}>Indicadores clave (últimos 3 meses)</Text>
 
       <Card style={styles.indicatorCard}>
         <View style={styles.indicatorRow}>
           <View style={styles.indicatorInfo}>
-            <Ionicons name="trending-down-outline" size={24} color={getHealthColor(health.debtRatio, 'debt')} />
+            <Ionicons name="trending-down-outline" size={24} color={getDebtToIncomeColor(health.debtToIncomeRatio)} />
             <View style={{ marginLeft: 12 }}>
-              <Text variant="body" style={{ fontWeight: '600' }}>Endeudamiento</Text>
-              <Text variant="caption" color={theme.colors.textMuted}>Deudas / Ingresos</Text>
+              <Text variant="body" style={{ fontWeight: '600' }}>Deuda-Ingreso</Text>
+              <Text variant="caption" color={theme.colors.textMuted}>Deuda total / Ingreso promedio</Text>
             </View>
           </View>
           <View style={styles.indicatorValue}>
-            <Text variant="h3" style={{ color: getHealthColor(health.debtRatio, 'debt') }}>
-              {health.debtRatio.toFixed(0)}%
+            <Text variant="h3" style={{ color: getDebtToIncomeColor(health.debtToIncomeRatio) }}>
+              {health.debtToIncomeRatio.toFixed(0)}%
             </Text>
-            <Text variant="small" color={getHealthColor(health.debtRatio, 'debt')}>
-              {getHealthLabel(health.debtRatio, 'debt')}
+            <Text variant="small" color={getDebtToIncomeColor(health.debtToIncomeRatio)}>
+              {getDebtToIncomeLabel(health.debtToIncomeRatio)}
             </Text>
           </View>
         </View>
         <ProgressBar 
-          progress={Math.min(health.debtRatio, 100)} 
-          color={getHealthColor(health.debtRatio, 'debt')}
+          progress={Math.min(health.debtToIncomeRatio, 100)} 
+          color={getDebtToIncomeColor(health.debtToIncomeRatio)}
           style={{ marginTop: 12 }}
         />
+        <View style={styles.indicatorDetail}>
+          <Text variant="caption" color={theme.colors.textMuted}>
+            Deuda total: {formatCurrency(health.totalDebtRemaining)} / Ingreso promedio: {formatCurrency(health.avgMonthlyIncome)}
+          </Text>
+        </View>
       </Card>
 
       <Card style={styles.indicatorCard}>
         <View style={styles.indicatorRow}>
           <View style={styles.indicatorInfo}>
-            <Ionicons name="wallet-outline" size={24} color={getHealthColor(health.savingsRatio, 'savings')} />
+            <Ionicons name="wallet-outline" size={24} color={getSavingsRateColor(health.savingsRate)} />
             <View style={{ marginLeft: 12 }}>
-              <Text variant="body" style={{ fontWeight: '600' }}>Capacidad de ahorro</Text>
-              <Text variant="caption" color={theme.colors.textMuted}>Ahorro / Ingresos</Text>
+              <Text variant="body" style={{ fontWeight: '600' }}>Tasa de Ahorro</Text>
+              <Text variant="caption" color={theme.colors.textMuted}>Metas / Ingresos 3 meses</Text>
             </View>
           </View>
           <View style={styles.indicatorValue}>
-            <Text variant="h3" style={{ color: getHealthColor(health.savingsRatio, 'savings') }}>
-              {health.savingsRatio.toFixed(0)}%
+            <Text variant="h3" style={{ color: getSavingsRateColor(health.savingsRate) }}>
+              {health.savingsRate.toFixed(0)}%
             </Text>
-            <Text variant="small" color={getHealthColor(health.savingsRatio, 'savings')}>
-              {getHealthLabel(health.savingsRatio, 'savings')}
+            <Text variant="small" color={getSavingsRateColor(health.savingsRate)}>
+              {getSavingsRateLabel(health.savingsRate)}
             </Text>
           </View>
         </View>
         <ProgressBar 
-          progress={Math.min(health.savingsRatio, 100)} 
-          color={getHealthColor(health.savingsRatio, 'savings')}
+          progress={Math.min(health.savingsRate, 100)} 
+          color={getSavingsRateColor(health.savingsRate)}
           style={{ marginTop: 12 }}
         />
+        <View style={styles.indicatorDetail}>
+          <Text variant="caption" color={theme.colors.textMuted}>
+            Metas acumuladas: {formatCurrency(health.totalGoalsAmount)}
+          </Text>
+        </View>
       </Card>
 
       <Card style={styles.indicatorCard}>
         <View style={styles.indicatorRow}>
           <View style={styles.indicatorInfo}>
-            <Ionicons name="card-outline" size={24} color={getHealthColor(health.cardUsageRatio, 'cards')} />
+            <Ionicons name="swap-horizontal-outline" size={24} color={getBalanceRateColor(health.monthlyBalanceRate)} />
             <View style={{ marginLeft: 12 }}>
-              <Text variant="body" style={{ fontWeight: '600' }}>Uso de tarjetas</Text>
-              <Text variant="caption" color={theme.colors.textMuted}>Saldo / Límite</Text>
+              <Text variant="body" style={{ fontWeight: '600' }}>Balance Mensual</Text>
+              <Text variant="caption" color={theme.colors.textMuted}>Ingreso - Gastos / Ingreso</Text>
             </View>
           </View>
           <View style={styles.indicatorValue}>
-            <Text variant="h3" style={{ color: getHealthColor(health.cardUsageRatio, 'cards') }}>
-              {health.cardUsageRatio.toFixed(0)}%
+            <Text variant="h3" style={{ color: getBalanceRateColor(health.monthlyBalanceRate) }}>
+              {health.monthlyBalanceRate.toFixed(0)}%
             </Text>
-            <Text variant="small" color={getHealthColor(health.cardUsageRatio, 'cards')}>
-              {getHealthLabel(health.cardUsageRatio, 'cards')}
+            <Text variant="small" color={getBalanceRateColor(health.monthlyBalanceRate)}>
+              {getBalanceRateLabel(health.monthlyBalanceRate)}
             </Text>
           </View>
         </View>
         <ProgressBar 
-          progress={Math.min(health.cardUsageRatio, 100)} 
-          color={getHealthColor(health.cardUsageRatio, 'cards')}
+          progress={Math.min(Math.abs(health.monthlyBalanceRate), 100)} 
+          color={getBalanceRateColor(health.monthlyBalanceRate)}
           style={{ marginTop: 12 }}
         />
+        <View style={styles.indicatorDetail}>
+          <Text variant="caption" color={theme.colors.textMuted}>
+            Te sobra: {formatCurrency(health.avgMonthlyIncome * health.monthlyBalanceRate / 100)} de promedio por mes
+          </Text>
+        </View>
+      </Card>
+
+      <Card style={styles.indicatorCard}>
+        <View style={styles.indicatorRow}>
+          <View style={styles.indicatorInfo}>
+            <Ionicons name="card-outline" size={24} color={getCreditUtilizationColor(health.creditUtilization)} />
+            <View style={{ marginLeft: 12 }}>
+              <Text variant="body" style={{ fontWeight: '600' }}>Uso de Crédito</Text>
+              <Text variant="caption" color={theme.colors.textMuted}>Saldo usado / Límite total</Text>
+            </View>
+          </View>
+          <View style={styles.indicatorValue}>
+            <Text variant="h3" style={{ color: getCreditUtilizationColor(health.creditUtilization) }}>
+              {health.creditUtilization.toFixed(0)}%
+            </Text>
+            <Text variant="small" color={getCreditUtilizationColor(health.creditUtilization)}>
+              {getCreditUtilizationLabel(health.creditUtilization)}
+            </Text>
+          </View>
+        </View>
+        <ProgressBar 
+          progress={Math.min(health.creditUtilization, 100)} 
+          color={getCreditUtilizationColor(health.creditUtilization)}
+          style={{ marginTop: 12 }}
+        />
+        <View style={styles.indicatorDetail}>
+          <Text variant="caption" color={theme.colors.textMuted}>
+            Usado: {formatCurrency(health.totalCreditUsed)} / Límite: {formatCurrency(health.totalCreditLimit)}
+          </Text>
+        </View>
+      </Card>
+
+      <Card style={styles.indicatorCard}>
+        <View style={styles.indicatorRow}>
+          <View style={styles.indicatorInfo}>
+            <Ionicons name="shield-checkmark-outline" size={24} color={getEmergencyFundColor(health.emergencyFundMonths)} />
+            <View style={{ marginLeft: 12 }}>
+              <Text variant="body" style={{ fontWeight: '600' }}>Fondo de Emergencia</Text>
+              <Text variant="caption" color={theme.colors.textMuted}>Meses de gastos cubiertos</Text>
+            </View>
+          </View>
+          <View style={styles.indicatorValue}>
+            <Text variant="h3" style={{ color: getEmergencyFundColor(health.emergencyFundMonths) }}>
+              {health.emergencyFundMonths.toFixed(1)}
+            </Text>
+            <Text variant="small" color={getEmergencyFundColor(health.emergencyFundMonths)}>
+              {getEmergencyFundLabel(health.emergencyFundMonths)}
+            </Text>
+          </View>
+        </View>
+        <ProgressBar 
+          progress={Math.min(health.emergencyFundMonths / 6 * 100, 100)} 
+          color={getEmergencyFundColor(health.emergencyFundMonths)}
+          style={{ marginTop: 12 }}
+        />
+        <View style={styles.indicatorDetail}>
+          <Text variant="caption" color={theme.colors.textMuted}>
+            {health.emergencyFundMonths >= 3 ? 'Cubierto ✓' : `Necesitas ${(3 - health.emergencyFundMonths).toFixed(1)} meses más`}
+          </Text>
+        </View>
       </Card>
 
       <Text variant="h3" style={styles.sectionTitle}>¿Puedes permitirte?</Text>
@@ -245,6 +325,12 @@ const styles = StyleSheet.create({
   },
   indicatorValue: {
     alignItems: 'flex-end',
+  },
+  indicatorDetail: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   decisionCard: {
     marginHorizontal: 16,

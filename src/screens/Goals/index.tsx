@@ -6,8 +6,9 @@ import { Text, Card, ProgressBar } from '../../components/atoms';
 import { GoalItem } from '../../components/molecules';
 import { useTheme, useGoals, useDebts, useCurrency } from '../../hooks';
 import { getProgressPercentage } from '../../utils';
-import { Debt } from '../../types';
+import { Debt, FinancialGoal } from '../../types';
 import { PayDebtModal } from './PayDebtModal';
+import { AddGoalMoneyModal } from './AddGoalMoneyModal';
 import { Swipeable } from 'react-native-gesture-handler';
 
 interface GoalsScreenProps {
@@ -17,7 +18,7 @@ interface GoalsScreenProps {
 const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { goals } = useGoals();
+  const { goals, deleteGoal, contributeToGoal } = useGoals();
   const { debts, deleteDebt } = useDebts();
   const { formatCurrency } = useCurrency();
   const [tab, setTab] = useState<'goals' | 'debts'>('goals');
@@ -25,6 +26,9 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
+
+  const [selectedGoal, setSelectedGoal] = useState<FinancialGoal | null>(null);
+  const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
 
   const activeGoals = goals.filter((g) => g.status === 'active');
   const activeDebts = debts.filter((d) => d.status === 'active');
@@ -72,6 +76,54 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
     );
   };
 
+  const handleAddMoneyToGoal = () => {
+    setShowMenu(false);
+    if (selectedGoal) {
+      setShowAddMoneyModal(true);
+    }
+  };
+
+  const handleEditGoal = () => {
+    setShowMenu(false);
+    if (selectedGoal) {
+      navigation.navigate('GoalForm', { goal: selectedGoal });
+    }
+  };
+
+  const handleDeleteGoal = () => {
+    setShowMenu(false);
+    Alert.alert(
+      'Eliminar meta',
+      `¿Estás seguro de eliminar "${selectedGoal?.name}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Eliminar', 
+          style: 'destructive',
+          onPress: () => {
+            if (selectedGoal) {
+              deleteGoal(selectedGoal.id);
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  const handleGoalPress = (goal: FinancialGoal) => {
+    setSelectedGoal(goal);
+    setShowMenu(true);
+  };
+
+  const handleGoalAddMoney = (amount: number) => {
+    if (selectedGoal) {
+      contributeToGoal(selectedGoal.id, amount);
+      if (selectedGoal.currentAmount + amount >= selectedGoal.targetAmount) {
+        Alert.alert('¡Felicidades!', 'Has alcanzado tu meta');
+      }
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}>
@@ -110,9 +162,87 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
               </Card>
             )}
             {activeGoals.length > 0 ? (
-              activeGoals.map((goal) => (
-                <GoalItem key={goal.id} goal={goal} onPress={() => {}} />
-              ))
+              activeGoals.map((goal) => {
+                const renderRightActions = () => (
+                  <TouchableOpacity
+                    style={[styles.deleteAction, { backgroundColor: theme.colors.expense }]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Eliminar meta',
+                        `¿Estás seguro de eliminar "${goal.name}"?`,
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          { 
+                            text: 'Eliminar', 
+                            style: 'destructive',
+                            onPress: () => deleteGoal(goal.id)
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+                    <Text variant="body" color="#FFFFFF" style={{ marginTop: 4 }}>Eliminar</Text>
+                  </TouchableOpacity>
+                );
+                return (
+                  <Swipeable key={goal.id} renderRightActions={renderRightActions} overshootRight={false}>
+                    <Card style={{ marginBottom: 12 }}>
+                      <View style={styles.goalHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text variant="body" style={{ fontWeight: '600' }}>{goal.name}</Text>
+                          <Text variant="caption" color={theme.colors.textMuted}>{goal.category}</Text>
+                        </View>
+                        <View style={styles.actionButtons}>
+                          <TouchableOpacity 
+                            style={[styles.actionButton, { backgroundColor: theme.colors.primary + '15' }]} 
+                            onPress={() => {
+                              setSelectedGoal(goal);
+                              setShowAddMoneyModal(true);
+                            }}
+                          >
+                            <Ionicons name="wallet-outline" size={18} color={theme.colors.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity 
+                            style={[styles.actionButton, { backgroundColor: theme.colors.secondary + '15' }]} 
+                            onPress={() => navigation.navigate('GoalForm', { goal })}
+                          >
+                            <Ionicons name="create-outline" size={18} color={theme.colors.secondary} />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      <View style={styles.goalAmounts}>
+                        <View>
+                          <Text variant="small" color={theme.colors.textMuted}>Actual</Text>
+                          <Text variant="body" color={theme.colors.success} style={{ fontWeight: '600' }}>
+                            {formatCurrency(goal.currentAmount)}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text variant="small" color={theme.colors.textMuted}>Meta</Text>
+                          <Text variant="body" style={{ fontWeight: '600' }}>{formatCurrency(goal.targetAmount)}</Text>
+                        </View>
+                        <View>
+                          <Text variant="small" color={theme.colors.textMuted}>Restante</Text>
+                          <Text variant="body" color={theme.colors.expense}>
+                            {formatCurrency(Math.max(goal.targetAmount - goal.currentAmount, 0))}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={{ marginTop: 12 }}>
+                        <ProgressBar 
+                          progress={getProgressPercentage(goal.currentAmount, goal.targetAmount)} 
+                          color={theme.colors.primary}
+                          backgroundColor={theme.colors.border}
+                        />
+                        <Text variant="small" color={theme.colors.textMuted} style={{ marginTop: 4 }}>
+                          {Math.round(getProgressPercentage(goal.currentAmount, goal.targetAmount))}% completado
+                        </Text>
+                      </View>
+                    </Card>
+                  </Swipeable>
+                );
+              })
             ) : (
               <View style={styles.empty}>
                 <Text variant="h3" color={theme.colors.textMuted}>No hay metas</Text>
@@ -232,22 +362,41 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Debt Menu Modal */}
+      {/* Menu Modal */}
       <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowMenu(false)}>
           <Pressable style={[styles.menuContainer, { backgroundColor: theme.colors.card }]} onPress={() => {}}>
-            <TouchableOpacity style={styles.menuItem} onPress={handlePay}>
-              <Ionicons name="wallet-outline" size={22} color={theme.colors.primary} />
-              <Text variant="body" style={{ marginLeft: 12 }}>Hacer pago</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={handleEdit}>
-              <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
-              <Text variant="body" style={{ marginLeft: 12 }}>Editar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={handleDelete}>
-              <Ionicons name="trash-outline" size={22} color={theme.colors.expense} />
-              <Text variant="body" color={theme.colors.expense} style={{ marginLeft: 12 }}>Eliminar</Text>
-            </TouchableOpacity>
+            {tab === 'debts' ? (
+              <>
+                <TouchableOpacity style={styles.menuItem} onPress={handlePay}>
+                  <Ionicons name="wallet-outline" size={22} color={theme.colors.primary} />
+                  <Text variant="body" style={{ marginLeft: 12 }}>Hacer pago</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={handleEdit}>
+                  <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
+                  <Text variant="body" style={{ marginLeft: 12 }}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={handleDelete}>
+                  <Ionicons name="trash-outline" size={22} color={theme.colors.expense} />
+                  <Text variant="body" color={theme.colors.expense} style={{ marginLeft: 12 }}>Eliminar</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.menuItem} onPress={handleAddMoneyToGoal}>
+                  <Ionicons name="wallet-outline" size={22} color={theme.colors.primary} />
+                  <Text variant="body" style={{ marginLeft: 12 }}>Agregar dinero</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={handleEditGoal}>
+                  <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
+                  <Text variant="body" style={{ marginLeft: 12 }}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={handleDeleteGoal}>
+                  <Ionicons name="trash-outline" size={22} color={theme.colors.expense} />
+                  <Text variant="body" color={theme.colors.expense} style={{ marginLeft: 12 }}>Eliminar</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -258,6 +407,16 @@ const GoalsScreen: React.FC<GoalsScreenProps> = ({ navigation }) => {
           visible={showPayModal}
           debt={selectedDebt}
           onClose={() => setShowPayModal(false)}
+        />
+      )}
+
+      {/* Add Goal Money Modal */}
+      {selectedGoal && (
+        <AddGoalMoneyModal
+          visible={showAddMoneyModal}
+          goal={selectedGoal}
+          onClose={() => setShowAddMoneyModal(false)}
+          onAdd={handleGoalAddMoney}
         />
       )}
     </View>
@@ -277,6 +436,8 @@ const styles = StyleSheet.create({
   debtHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   actionButtons: { flexDirection: 'row', gap: 8 },
   actionButton: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  goalAmounts: { flexDirection: 'row', justifyContent: 'space-between' },
   deleteAction: { width: 90, justifyContent: 'center', alignItems: 'center', marginBottom: 12, borderTopRightRadius: 16, borderBottomRightRadius: 16 },
   debtStatus: {},
   paidBadge: { fontSize: 14 },

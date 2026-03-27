@@ -1,25 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Card, Input, Button } from '../../components/atoms';
 import { useTheme, useGoals } from '../../hooks';
 import { validateAmount, getCurrentDate } from '../../utils';
+import { FinancialGoal } from '../../types';
 
 interface GoalFormScreenProps {
   navigation: any;
+  route?: { params?: { goal?: FinancialGoal } };
 }
 
-const GoalFormScreen: React.FC<GoalFormScreenProps> = ({ navigation }) => {
+const GoalFormScreen: React.FC<GoalFormScreenProps> = ({ navigation, route }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { addGoal } = useGoals();
+  const { addGoal, updateGoal } = useGoals();
+  
+  const editingGoal = route?.params?.goal;
+  const isEditing = !!editingGoal;
 
-  const [name, setName] = useState('');
-  const [targetAmount, setTargetAmount] = useState('');
-  const [currentAmount, setCurrentAmount] = useState('0');
-  const [category, setCategory] = useState('other');
-  const [deadline, setDeadline] = useState('');
+  const [name, setName] = useState(editingGoal?.name || '');
+  const [targetAmount, setTargetAmount] = useState(editingGoal?.targetAmount?.toString() || '');
+  const [currentAmount, setCurrentAmount] = useState(editingGoal?.currentAmount?.toString() || '0');
+  const [category, setCategory] = useState(editingGoal?.category || 'other');
+  const [deadline, setDeadline] = useState(editingGoal?.deadline || '');
 
   const categories = [
     { id: 'travel', name: 'Viajes', icon: 'airplane-outline' as keyof typeof Ionicons.glyphMap },
@@ -35,14 +40,24 @@ const GoalFormScreen: React.FC<GoalFormScreenProps> = ({ navigation }) => {
     if (!name.trim()) { Alert.alert('Error', 'Ingresa un nombre'); return; }
     if (!validateAmount(targetAmount)) { Alert.alert('Error', 'Ingresa un monto objetivo'); return; }
 
-    addGoal({
-      name,
-      targetAmount: parseFloat(targetAmount),
-      currentAmount: parseFloat(currentAmount) || 0,
-      category,
-      deadline: deadline || getCurrentDate(),
-      status: 'active',
-    });
+    if (isEditing && editingGoal) {
+      updateGoal(editingGoal.id, {
+        name,
+        targetAmount: parseFloat(targetAmount),
+        currentAmount: parseFloat(currentAmount) || 0,
+        category,
+        deadline: deadline || editingGoal.deadline,
+      });
+    } else {
+      addGoal({
+        name,
+        targetAmount: parseFloat(targetAmount),
+        currentAmount: parseFloat(currentAmount) || 0,
+        category,
+        deadline: deadline || getCurrentDate(),
+        status: 'active',
+      });
+    }
     navigation.goBack();
   };
 

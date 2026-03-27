@@ -9,6 +9,19 @@ export interface FinancialHealth {
   savingsRatio: number;
   cardUsageRatio: number;
   overallScore: 'excellent' | 'good' | 'fair' | 'poor';
+  // Nuevas métricas
+  debtToIncomeRatio: number;
+  savingsRate: number;
+  monthlyBalanceRate: number;
+  creditUtilization: number;
+  emergencyFundMonths: number;
+  // Detalles adicionales
+  avgMonthlyIncome: number;
+  avgMonthlyExpenses: number;
+  totalDebtRemaining: number;
+  totalGoalsAmount: number;
+  totalCreditUsed: number;
+  totalCreditLimit: number;
 }
 
 export interface DecisionEvaluation {
@@ -24,55 +37,140 @@ export interface DecisionEvaluation {
   };
 }
 
+const getTransactionsLast3Months = (transactions: Transaction[]): Transaction[] => {
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  return transactions.filter(t => new Date(t.date) >= threeMonthsAgo);
+};
+
+const getTransactionsLastNMonths = (transactions: Transaction[], months: number): Transaction[] => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - months);
+  return transactions.filter(t => new Date(t.date) >= date);
+};
+
+const calculateAverage = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, val) => sum + val, 0) / values.length;
+};
+
 export const calculateFinancialHealth = (
   transactions: Transaction[],
   debts: Debt[],
   cards: CreditCard[],
   goals: FinancialGoal[]
 ): FinancialHealth => {
+  // Transacciones últimos 3 meses para promedios
+  const last3MonthsTransactions = getTransactionsLast3Months(transactions);
+  
+  // Transacciones del mes actual
   const currentMonth = new Date().toISOString().slice(0, 7);
   const monthlyTransactions = transactions.filter(t => t.date.startsWith(currentMonth));
   
-  const monthlyIncome = monthlyTransactions
+  // === INGRESOS ===
+  const currentMonthIncome = monthlyTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
   
-  const monthlyExpenses = monthlyTransactions
+  const last3MonthsIncome = last3MonthsTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  // Ingreso promedio mensual (usando 3 meses)
+  const incomeMonths = getUniqueMonths(last3MonthsTransactions.filter(t => t.type === 'income'));
+  const avgMonthlyIncome = incomeMonths.length > 0 ? last3MonthsIncome / incomeMonths.length : last3MonthsIncome / 3;
+  
+  // === GASTOS ===
+  const currentMonthExpenses = monthlyTransactions
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
   
-  const monthlyDebtPayments = debts
-    .filter(d => d.status === 'active')
-    .reduce((sum, d) => sum + d.monthlyPayment, 0);
+  const last3MonthsExpenses = last3MonthsTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
   
+  // Gasto promedio mensual
+  const expenseMonths = getUniqueMonths(last3MonthsTransactions.filter(t => t.type === 'expense'));
+  const avgMonthlyExpenses = expenseMonths.length > 0 ? last3MonthsExpenses / expenseMonths.length : last3MonthsExpenses / 3;
+  
+  // === DEUDAS ===
+  const activeDebts = debts.filter(d => d.status === 'active');
+  const totalDebtRemaining = activeDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
+  
+  // === TARJETAS ===
   const totalCardLimit = cards.reduce((sum, c) => sum + c.limit, 0);
   const totalCardBalance = cards.reduce((sum, c) => sum + c.currentBalance, 0);
   
-  const availableSavings = monthlyIncome - monthlyExpenses - monthlyDebtPayments;
+  // === METAS ===
+  const totalGoalsAmount = goals
+    .filter(g => g.status === 'active')
+    .reduce((sum, g) => sum + g.currentAmount, 0);
   
-  const debtRatio = monthlyIncome > 0 ? (monthlyDebtPayments / monthlyIncome) * 100 : 0;
-  const savingsRatio = monthlyIncome > 0 ? (availableSavings / monthlyIncome) * 100 : 0;
-  const cardUsageRatio = totalCardLimit > 0 ? (totalCardBalance / totalCardLimit) * 100 : 0;
+  // === CÁLCULOS PRINCIPALES ===
   
+  // 1. Deuda/Ingreso: (deuda total / ingreso promedio) × 100
+  const debtToIncomeRatio = avgMonthlyIncome > 0 ? (totalDebtRemaining / avgMonthlyIncome) * 100 : 0;
+  
+  // 2. Tasa de ahorro: (total metas / ingresos 3 meses) × 100
+  const savingsRate = last3MonthsIncome > 0 ? (totalGoalsAmount / last3MonthsIncome) * 100 : 0;
+  
+  // 3. Balance mensual: ((ingreso - gasto) / ingreso promedio) × 100
+  const monthlyBalance = avgMonthlyIncome - avgMonthlyExpenses;
+  const monthlyBalanceRate = avgMonthlyIncome > 0 ? (monthlyBalance / avgMonthlyIncome) * 100 : 0;
+  
+  // 4. Uso de crédito: (crédito usado / límite total) × 100
+  const creditUtilization = totalCardLimit > 0 ? (totalCardBalance / totalCardLimit) * 100 : 0;
+  
+  // 5. Fondo emergencia: total metas / gasto promedio mensual (meses cubiertos)
+  const emergencyFundMonths = avgMonthlyExpenses > 0 ? totalGoalsAmount / avgMonthlyExpenses : 0;
+  
+  // === MÉTRICAS LEGACY ===
+  const availableSavings = currentMonthIncome - currentMonthExpenses;
+  const debtRatio = debtToIncomeRatio;
+  const savingsRatio = avgMonthlyIncome > 0 ? (monthlyBalance / avgMonthlyIncome) * 100 : 0;
+  const cardUsageRatio = creditUtilization;
+  
+  // === SCORE GENERAL ===
   let overallScore: FinancialHealth['overallScore'] = 'good';
-  if (debtRatio > 50 || savingsRatio < 5 || cardUsageRatio > 80) {
+  if (debtToIncomeRatio > 100 || monthlyBalanceRate < 0 || creditUtilization > 80) {
     overallScore = 'poor';
-  } else if (debtRatio > 30 || savingsRatio < 15 || cardUsageRatio > 50) {
+  } else if (debtToIncomeRatio > 50 || monthlyBalanceRate < 10 || creditUtilization > 50) {
     overallScore = 'fair';
-  } else if (debtRatio < 20 && savingsRatio > 20 && cardUsageRatio < 40) {
+  } else if (debtToIncomeRatio < 50 && monthlyBalanceRate > 20 && creditUtilization < 40 && emergencyFundMonths >= 3) {
     overallScore = 'excellent';
   }
   
   return {
-    monthlyIncome,
-    monthlyExpenses,
-    monthlyDebtPayments,
+    monthlyIncome: currentMonthIncome,
+    monthlyExpenses: currentMonthExpenses,
+    monthlyDebtPayments: totalDebtRemaining,
     availableSavings,
     debtRatio,
     savingsRatio,
     cardUsageRatio,
     overallScore,
+    // Nuevas métricas
+    debtToIncomeRatio,
+    savingsRate,
+    monthlyBalanceRate,
+    creditUtilization,
+    emergencyFundMonths,
+    // Detalles adicionales
+    avgMonthlyIncome,
+    avgMonthlyExpenses,
+    totalDebtRemaining,
+    totalGoalsAmount,
+    totalCreditUsed: totalCardBalance,
+    totalCreditLimit: totalCardLimit,
   };
+};
+
+const getUniqueMonths = (transactions: Transaction[]): string[] => {
+  const months = new Set<string>();
+  transactions.forEach(t => {
+    months.add(t.date.slice(0, 7));
+  });
+  return Array.from(months);
 };
 
 export const evaluateDecision = (
@@ -81,12 +179,12 @@ export const evaluateDecision = (
   estimatedCost: number
 ): DecisionEvaluation => {
   const monthlyPayment = estimatedCost / 60;
-  const monthsToSave = health.availableSavings > 0 ? Math.ceil(estimatedCost / health.availableSavings) : 999;
+  const monthsToSave = health.monthlyBalanceRate > 0 ? Math.ceil(estimatedCost / (health.avgMonthlyIncome * health.monthlyBalanceRate / 100)) : 999;
   
-  const canAffordMonthly = health.availableSavings > monthlyPayment;
-  const hasLowDebt = health.debtRatio < 40;
-  const hasGoodSavings = health.savingsRatio > 15;
-  const hasLowCardUsage = health.cardUsageRatio < 50;
+  const canAffordMonthly = health.monthlyBalanceRate > 0 && (health.avgMonthlyIncome * health.monthlyBalanceRate / 100) > monthlyPayment;
+  const hasLowDebt = health.debtToIncomeRatio < 75;
+  const hasGoodSavings = health.savingsRate > 15 || health.emergencyFundMonths >= 3;
+  const hasLowCardUsage = health.creditUtilization < 50;
   
   const canAfford = canAffordMonthly && hasLowDebt;
   const isReady = canAfford && hasGoodSavings && hasLowCardUsage;
@@ -95,7 +193,7 @@ export const evaluateDecision = (
   if (hasLowDebt) confidence += 30;
   if (hasGoodSavings) confidence += 30;
   if (hasLowCardUsage) confidence += 20;
-  if (health.availableSavings > estimatedCost * 0.2) confidence += 20;
+  if (health.emergencyFundMonths >= 6) confidence += 20;
   
   let recommendation = '';
   let risk: DecisionEvaluation['details']['risk'] = 'low';
@@ -108,7 +206,7 @@ export const evaluateDecision = (
   } else if (!canAffordMonthly && monthsToSave <= 12) {
     recommendation = `Te sugerimos esperar ${monthsToSave} meses para ahorrar y mejorar tu capacidad de pago.`;
     risk = 'medium';
-  } else if (health.debtRatio > 50) {
+  } else if (health.debtToIncomeRatio > 100) {
     recommendation = 'Tu nivel de endeudamiento es elevado. Te recomendamos reducir tus deudas antes de asumir nuevos compromisos.';
     risk = 'high';
   } else {
@@ -269,4 +367,68 @@ export const getAgeOfMoneyLabel = (level: AgeOfMoneyResult['level']): string => 
     default:
       return 'N/A';
   }
+};
+
+// Nuevas funciones para métricas de 3 meses
+
+export const getDebtToIncomeColor = (ratio: number): string => {
+  if (ratio < 50) return '#22C55E';
+  if (ratio < 100) return '#F59E0B';
+  return '#EF4444';
+};
+
+export const getDebtToIncomeLabel = (ratio: number): string => {
+  if (ratio < 50) return 'Saludable';
+  if (ratio < 100) return 'Moderado';
+  return 'Elevado';
+};
+
+export const getSavingsRateColor = (rate: number): string => {
+  if (rate > 20) return '#22C55E';
+  if (rate > 10) return '#F59E0B';
+  return '#EF4444';
+};
+
+export const getSavingsRateLabel = (rate: number): string => {
+  if (rate > 20) return 'Excelente';
+  if (rate > 10) return 'Aceptable';
+  return 'Bajo';
+};
+
+export const getBalanceRateColor = (rate: number): string => {
+  if (rate > 20) return '#22C55E';
+  if (rate > 10) return '#F59E0B';
+  if (rate > 0) return '#F59E0B';
+  return '#EF4444';
+};
+
+export const getBalanceRateLabel = (rate: number): string => {
+  if (rate > 20) return 'Sobresaliente';
+  if (rate > 10) return 'Bueno';
+  if (rate > 0) return 'Aceptable';
+  return 'Negativo';
+};
+
+export const getCreditUtilizationColor = (ratio: number): string => {
+  if (ratio < 50) return '#22C55E';
+  if (ratio < 80) return '#F59E0B';
+  return '#EF4444';
+};
+
+export const getCreditUtilizationLabel = (ratio: number): string => {
+  if (ratio < 50) return 'Bueno';
+  if (ratio < 80) return 'Moderado';
+  return 'Excesivo';
+};
+
+export const getEmergencyFundColor = (months: number): string => {
+  if (months >= 6) return '#22C55E';
+  if (months >= 3) return '#F59E0B';
+  return '#EF4444';
+};
+
+export const getEmergencyFundLabel = (months: number): string => {
+  if (months >= 6) return 'Sólido';
+  if (months >= 3) return 'Mínimo';
+  return 'Insuficiente';
 };
