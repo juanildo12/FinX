@@ -559,11 +559,14 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
                 </Text>
               </Card>
 
-              <Text variant="h3" style={{ marginTop: 16, marginBottom: 8 }}>Recomendaciones</Text>
+              <Text variant="h3" style={{ marginTop: 16, marginBottom: 12 }}>Recomendaciones</Text>
               <Card style={[styles.recommendationsCard, { backgroundColor: '#EFF6FF' }]}>
                 {recommendations.map((rec, index) => (
                   <View key={index} style={styles.recommendationItem}>
-                    <Text variant="body" style={{ flex: 1 }}>• {rec}</Text>
+                    <View style={styles.recommendationBullet}>
+                      <Text variant="caption" style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>{index + 1}</Text>
+                    </View>
+                    <Text variant="body" style={styles.recommendationText}>{rec}</Text>
                   </View>
                 ))}
               </Card>
@@ -838,7 +841,21 @@ const styles = StyleSheet.create({
   },
   recommendationItem: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  recommendationBullet: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  recommendationText: {
+    flex: 1,
+    lineHeight: 22,
   },
 });
 
