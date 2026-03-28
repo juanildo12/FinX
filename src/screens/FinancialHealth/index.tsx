@@ -167,6 +167,92 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
   };
   const overallStatus = getOverallStatus();
 
+  // Recomendaciones específicas por decisión y estado
+  const detailedRecommendations: Record<string, { ready: string[], notReady: string[] }> = {
+    vehicle: {
+      ready: [
+        'No comprometas más del 20% de tu ingreso mensual en la cuota del vehículo',
+        'Considera un enganche mínimo del 20% para reducir la deuda total',
+        'Incluye en tu presupuesto seguro, mantenimiento y combustible (~15% adicional)',
+        'Evita financiamientos mayores a 48 meses para no pagar de más en intereses',
+        'Mantén tu fondo de emergencia separado del presupuesto del vehículo',
+      ],
+      notReady: [
+        'Reduce tu deuda mensual actual antes de asumir una cuota de vehículo',
+        'Ahorra al menos el 20% del valor del vehículo que deseas antes de comprarlo',
+        'Construye o refuerza tu fondo de emergencia hasta cubrir al menos 3 meses',
+        'Reduce el uso de tus tarjetas de crédito por debajo del 40% del límite',
+        'Considera un vehículo de menor valor o un plan de ahorro previo de 6 a 12 meses',
+      ],
+    },
+    home: {
+      ready: [
+        'Ahorra al menos 20% del valor de la vivienda para el enganche',
+        'Reserva un 10-15% adicional para gastos de notaría, mudanza y primeros muebles',
+        'No comprometas más del 30% de tu ingreso mensual en la cuota hipotecaria',
+        'Mantén tu fondo de emergencia separado del dinero destinado al enganche',
+        'Considera viviendas en el rango de 3 a 4 veces tu ingreso anual bruto',
+      ],
+      notReady: [
+        'Trabaja en reducir tu deuda actual durante 12 a 18 meses antes de solicitar una hipoteca',
+        'Construye un fondo específico para el enganche (mínimo 20% del valor de la vivienda deseada)',
+        'Asegura tener entre 6 y 12 meses de gastos cubiertos en tu fondo de emergencia',
+        'Mejora tu historial crediticio pagando puntualmente todas tus deudas actuales',
+        'Considera viviendas en el rango de 3 a 4 veces tu ingreso anual bruto',
+      ],
+    },
+    trip: {
+      ready: [
+        'Define un presupuesto total para el viaje y no excedas el 30% de tu balance mensual',
+        'Paga el viaje de contado o en un solo tracto, evita meses sin intereses',
+        'Mantén tu fondo de emergencia sin tocarlo para imprevistos del viaje',
+        'Compara precios con al menos 3 meses de anticipación para mejores tarifas',
+      ],
+      notReady: [
+        'Espera a tener un balance mensual de al menos $400 antes de planear el gasto',
+        'Abre una meta de ahorro específica para el viaje con un monto y fecha objetivo',
+        'Refuerza tu fondo de emergencia antes de gastar en experiencias no esenciales',
+        'Considera viajes más cortos o nacionales mientras mejoras tu situación financiera',
+      ],
+    },
+    experience: {
+      ready: [
+        'Limita el gasto a no más del 20% de tu balance mensual disponible',
+        'Planea la experiencia con anticipación para aprovechar mejores precios',
+        'Evita usar crédito para este tipo de gastos; págalo de tu balance mensual',
+      ],
+      notReady: [
+        'Prioriza estabilizar tu balance mensual antes de gastar en experiencias premium',
+        'Crea una meta de ahorro pequeña y específica para este tipo de experiencias',
+        'Considera alternativas de menor costo como opciones locales o paquetes económicos',
+        'Evita el uso de crédito para gastos discrecionales',
+      ],
+    },
+  };
+
+  const getDetailedRecommendations = () => {
+    const decisionKey = selectedDecision || 'vehicle';
+    const recs = detailedRecommendations[decisionKey];
+    if (!recs) return detailedRecommendations.vehicle.notReady;
+    return passCount === 4 ? recs.ready : recs.notReady;
+  };
+  const recommendations = getDetailedRecommendations();
+
+  // Componente FactorCard
+  const FactorCard: React.FC<{ status: 'pass' | 'partial' | 'fail'; name: string; description: string }> = ({ status, name, description }) => (
+    <Card style={styles.factorCard}>
+      <View style={styles.factorRow}>
+        <Text style={{ fontSize: 20, color: getStatusColor(status), width: 30 }}>
+          {getStatusIcon(status)}
+        </Text>
+        <View style={styles.factorContent}>
+          <Text variant="body" style={{ fontWeight: '600' }}>{name}</Text>
+          <Text variant="caption" color={theme.colors.textMuted} style={{ marginTop: 4 }}>{description}</Text>
+        </View>
+      </View>
+    </Card>
+  );
+
   const decisionRecommendations: Record<string, string[]> = {
     vehicle: [
       'Aumenta tu tasa de ahorro al menos al 15% durante 6-12 meses',
@@ -194,22 +280,6 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
       'Evita el uso de crédito para gastos discrecionales',
     ],
   };
-
-  const getRecommendations = () => {
-    // Si está LISTO - consejos para ejecutar bien
-    if (passCount === 4) {
-      return [
-        'Considera dar un enganche del 20-30% del valor',
-        'Mantén la cuota mensual menor al 15% de tu ingreso',
-        'Compara tasas de interés entre diferentes instituciones',
-        'Verifica que el pago no comprometa más del 30% de tu presupuesto',
-      ];
-    }
-    
-    // Usar recomendaciones específicas según el tipo de decisión
-    return decisionRecommendations[selectedDecision || 'vehicle'] || decisionRecommendations.vehicle;
-  };
-  const recommendations = getRecommendations();
 
   const scoreColors: Record<string, string> = {
     excellent: '#22C55E',
@@ -499,66 +569,133 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
             <View style={styles.modalHeader}>
+              <Ionicons name={(selectedDecisionData?.icon as any) || 'help-circle'} size={24} color={theme.colors.primary} />
+              <Text variant="h3" style={{ flex: 1, marginLeft: 12 }}>{selectedDecisionData?.name}</Text>
               <TouchableOpacity onPress={() => setShowDecisionModal(false)}>
                 <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
-              <Text variant="h3" style={{ flex: 1, textAlign: 'center' }}>{selectedDecisionData?.name}</Text>
-              <View style={{ width: 24 }} />
             </View>
 
             <ScrollView style={styles.modalContent}>
-              <Card style={styles.modalInfoCard}>
-                <Text variant="caption" color={theme.colors.textMuted}>
-                  💰 Rango: {formatCurrency(selectedDecisionData?.costRange[0] || 0)} - {formatCurrency(selectedDecisionData?.costRange[1] || 0)}
-                </Text>
-                <Text variant="caption" color={theme.colors.textMuted} style={{ marginTop: 4 }}>
-                  📊 Estimado mensual: {formatCurrency(avgCost / 60)} (a 60 meses)
-                </Text>
-              </Card>
-
-              <Text variant="h3" style={{ marginVertical: 16 }}>Tu situación actual vs. esta decisión</Text>
-
-              {criteria.map((criterion, index) => (
-                <Card key={index} style={styles.criterionCard}>
-                  <View style={styles.criterionRow}>
-                    <Text style={{ fontSize: 18, color: getStatusColor(criterion.status), width: 30 }}>
-                      {getStatusIcon(criterion.status)}
+              {/* Banner de Veredicto */}
+              <Card style={[
+                styles.verdictBanner,
+                { 
+                  backgroundColor: overallStatus.color === '#22C55E' ? '#ECFDF5' : 
+                                   overallStatus.color === '#F59E0B' ? '#FFFBEB' : '#FEF2F2',
+                  borderColor: overallStatus.color === '#22C55E' ? '#A7F3D0' : 
+                              overallStatus.color === '#F59E0B' ? '#FDE68A' : '#FECACA'
+                }
+              ]}>
+                <View style={styles.verdictRow}>
+                  <Ionicons 
+                    name={(overallStatus.color === '#22C55E' ? 'checkmark-circle' : 
+                          overallStatus.color === '#F59E0B' ? 'alert-circle' : 'x-circle') as any} 
+                    size={32} 
+                    color={overallStatus.color} 
+                  />
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text variant="h3" style={{ color: overallStatus.color }}>
+                      {overallStatus.label}
                     </Text>
-                    <View style={styles.criterionContent}>
-                      <View style={styles.criterionHeader}>
-                        <Text variant="body" style={{ fontWeight: '600' }}>{criterion.name}</Text>
-                        <Text variant="body" style={{ color: getStatusColor(criterion.status) }}>
-                          {criterion.value.toFixed(0)}% {criterion.name === 'Fondo emergencia' ? 'meses' : ''}
-                        </Text>
-                      </View>
-                      <View style={styles.criterionBarBg}>
-                        <View 
-                          style={[
-                            styles.criterionBarFill, 
-                            { 
-                              width: `${Math.min((criterion.value / criterion.max) * 100, 100)}%`,
-                              backgroundColor: getStatusColor(criterion.status)
-                            }
-                          ]} 
-                        />
-                      </View>
-                      <Text variant="caption" color={theme.colors.textMuted} style={{ marginTop: 4 }}>
-                        {criterion.message}
-                      </Text>
-                    </View>
+                    <Text variant="caption" color={theme.colors.textMuted}>
+                      {overallStatus.label === 'LISTO' ? 'Estás preparado para tomar esta decisión' :
+                       overallStatus.label === 'CASI LISTO' ? 'Mejora algunos factores antes de decidir' : 
+                       'Trabaja en tu salud financiera primero'}
+                    </Text>
                   </View>
-                </Card>
-              ))}
-
-              <Card style={[styles.verdictCard, { backgroundColor: overallStatus.color + '15' }]}>
-                <Text variant="h2" style={{ color: overallStatus.color, textAlign: 'center' }}>
-                  {overallStatus.label}
-                </Text>
-                <Text variant="body" color={theme.colors.textMuted} style={{ textAlign: 'center', marginTop: 8 }}>
-                  {evaluation?.recommendation}
-                </Text>
+                </View>
               </Card>
 
+              {/* Factores Clave */}
+              <Text variant="h3" style={{ marginTop: 8, marginBottom: 12 }}>Factores clave</Text>
+              
+              {selectedDecision === 'vehicle' && (
+                <>
+                  <FactorCard
+                    status={health.debtToIncomeRatio < 30 ? 'pass' : health.debtToIncomeRatio < 40 ? 'partial' : 'fail'}
+                    name="Capacidad de endeudamiento"
+                    description={`Tu deuda representa el ${health.debtToIncomeRatio.toFixed(0)}% de tus ingresos (óptimo < 30%)`}
+                  />
+                  <FactorCard
+                    status={health.savingsRate >= 15 ? 'pass' : health.savingsRate >= 10 ? 'partial' : 'fail'}
+                    name="Ahorro mensual"
+                    description={`Tienes un ${health.savingsRate.toFixed(0)}% de ahorro acumulado (mínimo 15%)`}
+                  />
+                  <FactorCard
+                    status={health.emergencyFundMonths >= 3 ? 'pass' : health.emergencyFundMonths >= 2 ? 'partial' : 'fail'}
+                    name="Fondo de emergencia"
+                    description={`Tu fondo cubre ${health.emergencyFundMonths.toFixed(1)} meses de gastos (mínimo 3)`}
+                  />
+                  <FactorCard
+                    status={health.creditUtilization < 40 ? 'pass' : health.creditUtilization < 60 ? 'partial' : 'fail'}
+                    name="Uso de crédito"
+                    description={`Usas el ${health.creditUtilization.toFixed(0)}% de tu límite disponible (óptimo < 40%)`}
+                  />
+                </>
+              )}
+
+              {selectedDecision === 'home' && (
+                <>
+                  <FactorCard
+                    status={health.debtToIncomeRatio < 25 ? 'pass' : health.debtToIncomeRatio < 35 ? 'partial' : 'fail'}
+                    name="Endeudamiento actual"
+                    description={`Tu deuda representa el ${health.debtToIncomeRatio.toFixed(0)}% de tus ingresos (óptimo < 25%)`}
+                  />
+                  <FactorCard
+                    status={health.savingsRate >= 20 ? 'pass' : health.savingsRate >= 15 ? 'partial' : 'fail'}
+                    name="Capacidad de ahorro"
+                    description={`Estás ahorrando el ${health.savingsRate.toFixed(0)}% de tus ingresos (óptimo >= 20%)`}
+                  />
+                  <FactorCard
+                    status={health.emergencyFundMonths >= 6 ? 'pass' : health.emergencyFundMonths >= 4 ? 'partial' : 'fail'}
+                    name="Reserva de emergencia"
+                    description={`Tienes ${health.emergencyFundMonths.toFixed(1)} meses cubiertos (óptimo >= 6 meses)`}
+                  />
+                  <FactorCard
+                    status={health.avgMonthlyIncome >= 2000 ? 'pass' : health.avgMonthlyIncome >= 1000 ? 'partial' : 'fail'}
+                    name="Ingreso disponible"
+                    description={`Tienes ${formatCurrency(health.avgMonthlyIncome)} disponibles (óptimo >= $2,000)`}
+                  />
+                </>
+              )}
+
+              {selectedDecision === 'trip' && (
+                <>
+                  <FactorCard
+                    status={health.avgMonthlyIncome - health.avgMonthlyExpenses >= 800 ? 'pass' : health.avgMonthlyIncome - health.avgMonthlyExpenses >= 400 ? 'partial' : 'fail'}
+                    name="Balance mensual"
+                    description={`Te sobran ${formatCurrency(health.avgMonthlyIncome - health.avgMonthlyExpenses)} al mes (óptimo >= $800)`}
+                  />
+                  <FactorCard
+                    status={health.savingsRate >= 10 ? 'pass' : health.savingsRate >= 5 ? 'partial' : 'fail'}
+                    name="Ahorro acumulado"
+                    description={`Tienes ${health.savingsRate.toFixed(0)}% de ahorro (óptimo >= 10%)`}
+                  />
+                  <FactorCard
+                    status={health.emergencyFundMonths >= 3 ? 'pass' : health.emergencyFundMonths >= 2 ? 'partial' : 'fail'}
+                    name="Capacidad de recuperación"
+                    description={`Fondo para ${health.emergencyFundMonths.toFixed(1)} meses (óptimo >= 3)`}
+                  />
+                </>
+              )}
+
+              {selectedDecision === 'experience' && (
+                <>
+                  <FactorCard
+                    status={health.avgMonthlyIncome - health.avgMonthlyExpenses >= 600 ? 'pass' : health.avgMonthlyIncome - health.avgMonthlyExpenses >= 300 ? 'partial' : 'fail'}
+                    name="Ingreso disponible"
+                    description={`Te sobran ${formatCurrency(health.avgMonthlyIncome - health.avgMonthlyExpenses)} al mes (óptimo >= $600)`}
+                  />
+                  <FactorCard
+                    status={health.emergencyFundMonths >= 3 ? 'pass' : health.emergencyFundMonths >= 2 ? 'partial' : 'fail'}
+                    name="Colchón financiero"
+                    description={`Tienes ${health.emergencyFundMonths.toFixed(1)} meses cubiertos (óptimo >= 3)`}
+                  />
+                </>
+              )}
+
+              {/* Recomendaciones */}
               <Text variant="h3" style={{ marginTop: 16, marginBottom: 12 }}>Recomendaciones</Text>
               <Card style={[styles.recommendationsCard, { backgroundColor: '#EFF6FF' }]}>
                 {recommendations.map((rec, index) => (
@@ -569,6 +706,16 @@ const FinancialHealthScreen: React.FC<FinancialHealthScreenProps> = ({ navigatio
                     <Text variant="body" style={styles.recommendationText}>{rec}</Text>
                   </View>
                 ))}
+              </Card>
+
+              {/* Aviso Legal */}
+              <Card style={[styles.legalCard, { backgroundColor: '#F3F4F6' }]}>
+                <View style={styles.legalRow}>
+                  <Ionicons name="information-circle-outline" size={20} color="#6B7280" />
+                  <Text variant="caption" color="#6B7280" style={{ marginLeft: 8, flex: 1 }}>
+                    Esta evaluación es orientativa y educativa. No constituye asesoría financiera profesional. Consulta con un asesor financiero certificado antes de tomar decisiones importantes.
+                  </Text>
+                </View>
               </Card>
 
               <View style={{ height: 40 }} />
@@ -856,6 +1003,39 @@ const styles = StyleSheet.create({
   recommendationText: {
     flex: 1,
     lineHeight: 22,
+  },
+  factorCard: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  factorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  factorContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  verdictBanner: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  verdictRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legalCard: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
 });
 
